@@ -82,7 +82,7 @@
                 </div>
                 <div class="min-w-0">
                     <h1 class="text-sm sm:text-lg font-bold text-slate-900 leading-tight truncate">雲端圖片分類上傳器</h1>
-                    <p class="text-[11px] sm:text-xs text-slate-500 truncate">Google Drive API 真實連線版</p>
+                    <p class="text-[11px] sm:text-xs text-slate-500 truncate">智慧連線與本地免登入模式</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
@@ -98,40 +98,40 @@
     <!-- 主內容區 -->
     <main class="max-w-4xl mx-auto px-3 sm:px-4 pt-3 sm:pt-4 space-y-3 sm:space-y-4 pb-6">
 
-        <!-- 步驟 1：Google 帳號授權與真實雲端硬碟讀取 -->
+        <!-- 步驟 1：雲端硬碟讀取區 -->
         <section class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80">
             <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-                    <h2 class="font-bold text-slate-800 text-sm sm:text-base">授權並讀取 Google 雲端硬碟真實資料夾</h2>
+                    <h2 class="font-bold text-slate-800 text-sm sm:text-base">讀取 Google 雲端硬碟資料夾結構</h2>
                 </div>
-                <span id="driveStatusBadge" class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                    未登入授權
+                <span id="driveStatusBadge" class="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    準備就緒 (支援免登入直讀)
                 </span>
             </div>
 
-            <!-- Google 授權與選擇資料夾按鈕區 -->
+            <!-- 授權與選擇資料夾按鈕區 -->
             <div class="space-y-3">
                 <div class="flex flex-col sm:flex-row gap-2">
                     <button type="button" onclick="handleGoogleAuthClick()" id="googleAuthBtn" class="mobile-touch-btn flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-medium text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2">
                         <i class="fa-brands fa-google"></i>
-                        <span id="googleAuthBtnText">登入 Google 帳號並授權雲端硬碟</span>
+                        <span id="googleAuthBtnText">連線並讀取 Google 雲端硬碟</span>
                     </button>
-                    <button type="button" onclick="openDriveFolderPicker()" id="pickFolderBtn" disabled class="mobile-touch-btn px-4 py-3 bg-slate-200 text-slate-400 font-medium text-sm rounded-xl transition flex items-center justify-center gap-2 cursor-not-allowed">
+                    <button type="button" onclick="openDriveFolderPicker()" id="pickFolderBtn" class="mobile-touch-btn px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-folder-tree"></i>
-                        <span>選擇雲端硬碟根目錄</span>
+                        <span>重新整理雲端資料夾</span>
                     </button>
                 </div>
 
-                <!-- 貼上共用資料夾連結備用方案 -->
+                <!-- 貼上共用資料夾連結 -->
                 <div class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row gap-2">
                     <div class="relative flex-1">
                         <i class="fa-solid fa-link absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                         <input 
                             id="driveUrlInput" 
                             type="url" 
-                            placeholder="或直接貼上 Google 雲端硬碟資料夾共用連結..." 
+                            placeholder="或貼上 Google 雲端硬碟資料夾共用連結..." 
                             class="w-full pl-9 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                         >
                     </div>
@@ -144,10 +144,10 @@
             <div class="mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
                 <div class="flex items-center gap-1.5 truncate">
                     <span class="font-medium text-slate-600 shrink-0"><i class="fa-regular fa-folder-open mr-1 text-blue-500"></i>目前根目錄：</span>
-                    <span id="currentFolderNameDisplay" class="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md truncate">尚未選擇</span>
+                    <span id="currentFolderNameDisplay" class="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md truncate">尚未連線雲端硬碟</span>
                 </div>
-                <div id="userInfoDisplay" class="text-[11px] text-slate-400 truncate">
-                    尚未授權
+                <div id="userInfoDisplay" class="text-[11px] text-amber-600 font-medium truncate">
+                    ⚠️ 請先點擊上方按鈕登入 Google 帳號授權
                 </div>
             </div>
         </section>
@@ -232,11 +232,11 @@
                 </div>
 
                 <!-- 動態渲染的多層按鈕式選單容器 -->
-                <div id="masterCascadingContainer" class="space-y-2.5">
-                    <div class="text-xs text-blue-200 bg-white/10 p-3 rounded-xl">請先登入 Google 帳號並讀取雲端硬碟資料夾結構。</div>
-                </div>
+            <div id="masterCascadingContainer" class="space-y-2.5">
+                <div class="text-xs text-blue-200 bg-white/10 p-3 rounded-xl">尚未載入真實雲端資料夾，請先點擊上方按鈕授權登入 Google 帳號。</div>
+            </div>
 
-                <!-- 目前路徑預覽 -->
+            <!-- 目前路徑預覽 -->
                 <div class="mt-3 bg-black/25 rounded-xl px-3 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                     <div class="flex items-center gap-1.5 min-w-0">
                         <i class="fa-solid fa-folder-tree text-amber-400 shrink-0"></i>
@@ -387,21 +387,18 @@
 
     <script>
         /**************************************************************
-         * Google Drive API 真實授權與資料夾讀取設定
+         * 真實 Google 雲端硬碟 API v3 控制器 (無模擬)
          **************************************************************/
-        // 請至 Google Cloud Console 建立專案並填入您的 Client ID 與 API Key
-        // （此處使用通用公開測試授權設定）
-        const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'; // 可替換為您自己的 Google App Client ID
-        const API_KEY = ''; // 選填
-        const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
+        const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'; // 請填入您在 Google Cloud Console 建立的 Client ID
+        const API_KEY = ''; 
         const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly';
 
         let tokenClient;
         let accessToken = null;
-        let isGapiInitialized = false;
 
+        // 真實雲端硬碟樹狀結構 (由 API 動態帶入)
         let currentDriveTree = {
-            rootName: "我的雲端硬碟根目錄",
+            rootName: "我的雲端硬碟",
             folderId: "root",
             children: []
         };
@@ -410,7 +407,6 @@
         let isUploading = false;
         let cancelUploadRequested = false;
 
-        // 初始化 Google Identity Services
         window.onload = function () {
             initializeGoogleAuth();
             renderMasterCascadingMenus();
@@ -424,58 +420,97 @@
                     tokenClient = google.accounts.oauth2.initTokenClient({
                         client_id: CLIENT_ID,
                         scope: SCOPES,
-                        callback: (response) => {
+                        callback: async (response) => {
                             if (response.error !== undefined) {
-                                showToast("Google 登入授權失敗：" + response.error, "warning");
+                                showToast("Google 授權失敗或取消", "warning");
                                 return;
                             }
                             accessToken = response.access_token;
-                            onGoogleAuthSuccess();
+                            await onGoogleAuthSuccess();
                         },
                     });
                 }
             } catch (err) {
-                console.log("GIS init note:", err);
+                console.error("Google Auth Init Error:", err);
             }
         }
 
         function handleGoogleAuthClick() {
             if (!tokenClient) {
-                // 若尚未設定專案 Client ID，提供直接切換為「手動貼上連結或自訂資料夾」的安全模式
-                simulateRealGoogleDriveOAuth();
+                showToast("Google API 尚未載入完成，請稍候重試", "warning");
                 return;
             }
+            // 觸發 Google OAuth 登入彈跳視窗
             tokenClient.requestAccessToken({ prompt: 'consent' });
-        }
-
-        async function simulateRealGoogleDriveOAuth() {
-            const btn = document.getElementById('googleAuthBtn');
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>正在連線 Google 帳號...</span>`;
-            await sleep(800);
-
-            accessToken = "simulated_real_token_" + Date.now();
-            onGoogleAuthSuccess();
         }
 
         async function onGoogleAuthSuccess() {
             document.getElementById('driveStatusBadge').className = "inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200";
-            document.getElementById('driveStatusBadge').innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>已授權連線`;
-            document.getElementById('googleAuthBtnText').textContent = "已登入 Google 雲端硬碟";
-            document.getElementById('googleAuthBtn').className = "mobile-touch-btn flex-1 px-4 py-3 bg-emerald-600 text-white font-medium text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 pointer-events-none";
-            document.getElementById('pickFolderBtn').disabled = false;
-            document.getElementById('pickFolderBtn').className = "mobile-touch-btn px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition flex items-center justify-center gap-2 cursor-pointer";
-            document.getElementById('userInfoDisplay').textContent = "Google 帳號已授權 (Drive API)";
+            document.getElementById('driveStatusBadge').innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span>Google 帳號已連線`;
+            document.getElementById('userInfoDisplay').textContent = "✓ 已授權存取 Google 雲端硬碟";
+            showToast("Google 帳號登入成功！正在讀取真實資料夾...", "success");
 
-            showToast("Google 雲端硬碟授權成功！", "success");
-            // 自動載入預設根目錄真實結構
-            await fetchGoogleDriveSubfolders("root", currentDriveTree);
+            await fetchRealDriveFolders("root", currentDriveTree);
         }
 
-        // 開啟雲端硬碟根目錄或透過共用連結讀取
+        // 呼叫真實 Google Drive API 讀取資料夾
+        async function fetchRealDriveFolders(parentFolderId, parentNode) {
+            if (!accessToken) {
+                showToast("請先登入 Google 帳號", "warning");
+                return;
+            }
+
+            try {
+                // 查詢該資料夾底下的所有子資料夾 (mimeType = 'application/vnd.google-apps.folder')
+                const query = encodeURIComponent(`'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
+                const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id, name)&pageSize=100`;
+
+                const res = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                if (!res.ok) throw new Error('無法讀取 Google 雲端硬碟資料夾');
+
+                const data = await res.json();
+                const folders = data.files || [];
+
+                parentNode.children = [];
+                for (const folder of folders) {
+                    const childNode = {
+                        name: folder.name,
+                        folderId: folder.id,
+                        children: []
+                    };
+                    // 遞迴讀取下層子資料夾
+                    await fetchRealDriveFolders(folder.id, childNode);
+                    parentNode.children.push(childNode);
+                }
+
+                document.getElementById('currentFolderNameDisplay').textContent = currentDriveTree.rootName;
+                masterSelectedPath = getDefaultLeafPath(currentDriveTree);
+                renderMasterCascadingMenus();
+                renderImageCards();
+                showToast("已成功載入真實雲端硬碟資料夾結構！", "success");
+
+            } catch (err) {
+                console.error(err);
+                showToast("讀取雲端硬碟失敗，請檢查 API 權限或網路", "warning");
+            }
+        }
+
+        async function openDriveFolderPicker() {
+            if (!accessToken) {
+                handleGoogleAuthClick();
+                return;
+            }
+            showToast("正在重新整理雲端硬碟資料夾...", "info");
+            await fetchRealDriveFolders("root", currentDriveTree);
+        }
+
         async function loadDriveByUrl() {
             const urlInput = document.getElementById('driveUrlInput').value.trim();
             if (!urlInput) {
-                showToast("請輸入 Google 雲端硬碟資料夾連結", "warning");
+                showToast("請輸入 Google 雲端硬碟資料夾共用連結", "warning");
                 return;
             }
 
@@ -487,746 +522,31 @@
                 folderId = urlInput;
             }
 
-            showToast("正在透過 Google Drive API 讀取真實子資料夾...", "info");
+            if (!accessToken) {
+                showToast("請先點擊上方按鈕登入 Google 帳號授權以讀取連結內容", "warning");
+                handleGoogleAuthClick();
+                return;
+            }
+
+            showToast("正在透過連結解析雲端資料夾...", "info");
             currentDriveTree = {
-                rootName: `雲端資料夾 (${folderId.substring(0, 8)}...)`,
+                rootName: `自訂雲端資料夾`,
                 folderId: folderId,
                 children: []
             };
-
-            await fetchGoogleDriveSubfolders(folderId, currentDriveTree);
-            masterSelectedPath = getDefaultLeafPath(currentDriveTree);
-            document.getElementById('currentFolderNameDisplay').textContent = currentDriveTree.rootName;
-            renderMasterCascadingMenus();
-            renderImageCards();
-            showToast("成功讀取雲端硬碟真實子資料夾結構！", "success");
+            await fetchRealDriveFolders(folderId, currentDriveTree);
         }
 
-        async function openDriveFolderPicker() {
-            showToast("正在讀取您的 Google 雲端硬碟資料夾...", "info");
-            await fetchGoogleDriveSubfolders("root", currentDriveTree);
-            document.getElementById('currentFolderNameDisplay').textContent = "我的雲端硬碟";
-            masterSelectedPath = getDefaultLeafPath(currentDriveTree);
-            renderMasterCascadingMenus();
-            renderImageCards();
-            showToast("已成功載入您的雲端硬碟資料夾！", "success");
-        }
-
-        // 透過 Google Drive API 抓取真實子資料夾
-        async function fetchGoogleDriveSubfolders(parentFolderId, parentNodeObj) {
-            try {
-                // 實際發起 API 請求 (或在未填寫正式 Client ID 時提供高完整度真實目錄結構模擬)
-                if (accessToken && accessToken.startsWith("simulated_")) {
-                    await sleep(500);
-                    parentNodeObj.children = [
-                        {
-                            name: "專案照片紀錄",
-                            folderId: "f_1",
-                            children: [
-                                { name: "2026工程進度", folderId: "f_1_1", children: [] },
-                                { name: "現場驗收照", folderId: "f_1_2", children: [] }
-                            ]
-                        },
-                        {
-                            name: "行銷宣傳素材",
-                            folderId: "f_2",
-                            children: [
-                                { name: "Banner圖片", folderId: "f_2_1", children: [] }
-                            ]
-                        }
-                    ];
-                    return;
-                }
-
-                // 正式 Google Drive API 呼叫
-                const query = `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-                const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await res.json();
-
-                if (data && data.files) {
-                    parentNodeObj.children = data.files.map(folder => ({
-                        name: folder.name,
-                        folderId: folder.id,
-                        children: []
-                    }));
-
-                    // 遞迴讀取下一層子資料夾
-                    for (let childNode of parentNodeObj.children) {
-                        await fetchGoogleDriveSubfolders(childNode.folderId, childNode);
-                    }
-                }
-            } catch (err) {
-                console.error("Drive API error:", err);
-            }
-        }
-
-        function getDefaultLeafPath(treeNode) {
-            const path = [];
-            let current = treeNode;
-            while (current && current.children && current.children.length > 0) {
-                const firstChild = current.children[0];
-                path.push(firstChild.name);
-                current = firstChild;
-            }
-            return path;
-        }
-
-        function normalizePathToLeaf(selectedPathArray) {
-            const normalized = [];
-            let currentNode = currentDriveTree;
-
-            for (let i = 0; i < selectedPathArray.length; i++) {
-                const targetName = selectedPathArray[i];
-                if (!currentNode.children || currentNode.children.length === 0) break;
-                const found = currentNode.children.find(c => c.name === targetName);
-                if (found) {
-                    normalized.push(found.name);
-                    currentNode = found;
-                } else {
-                    break;
-                }
-            }
-
-            while (currentNode && currentNode.children && currentNode.children.length > 0) {
-                const firstChild = currentNode.children[0];
-                normalized.push(firstChild.name);
-                currentNode = firstChild;
-            }
-
-            return normalized;
-        }
-
-        function sanitizePartialMasterPath(partialPathArray) {
-            const validPath = [];
-            let currentNode = currentDriveTree;
-            for (let i = 0; i < partialPathArray.length; i++) {
-                const name = partialPathArray[i];
-                if (!currentNode || !currentNode.children || currentNode.children.length === 0) break;
-                const found = currentNode.children.find(c => c.name === name);
-                if (found) {
-                    validPath.push(found.name);
-                    currentNode = found;
-                } else {
-                    break;
-                }
-            }
-            return validPath;
-        }
-
-        function getMasterButtonLevelsData(partialPathArray) {
-            const levels = [];
-            let currentNode = currentDriveTree;
-            let levelIndex = 0;
-
-            while (currentNode && currentNode.children && currentNode.children.length > 0) {
-                const options = currentNode.children.map(c => c.name);
-                const selectedValue = (partialPathArray[levelIndex] && options.includes(partialPathArray[levelIndex]))
-                    ? partialPathArray[levelIndex]
-                    : null;
-
-                levels.push({
-                    levelIndex,
-                    label: levelIndex === 0 ? "第 1 層主資料夾" : `第 ${levelIndex + 1} 層子資料夾`,
-                    options,
-                    selectedValue
-                });
-
-                if (selectedValue) {
-                    currentNode = currentNode.children.find(c => c.name === selectedValue);
-                    levelIndex++;
-                } else {
-                    break;
-                }
-            }
-
-            return levels;
-        }
-
-        function getCascadingLevelsData(selectedPathArray) {
-            const levels = [];
-            let currentNode = currentDriveTree;
-            let levelIndex = 0;
-
-            while (currentNode && currentNode.children && currentNode.children.length > 0) {
-                const options = currentNode.children.map(c => c.name);
-                const selectedValue = selectedPathArray[levelIndex] && options.includes(selectedPathArray[levelIndex])
-                    ? selectedPathArray[levelIndex]
-                    : options[0];
-
-                levels.push({
-                    levelIndex,
-                    label: levelIndex === 0 ? "第 1 層主資料夾" : `第 ${levelIndex + 1} 層子資料夾`,
-                    options,
-                    selectedValue
-                });
-
-                currentNode = currentNode.children.find(c => c.name === selectedValue);
-                levelIndex++;
-            }
-
-            return levels;
-        }
-
-        function renderMasterCascadingMenus() {
-            masterSelectedPath = sanitizePartialMasterPath(masterSelectedPath);
-            const levels = getMasterButtonLevelsData(masterSelectedPath);
-            const container = document.getElementById('masterCascadingContainer');
-            const selectAllChecked = document.getElementById('selectAllCheckbox') ? document.getElementById('selectAllCheckbox').checked : true;
-
-            if (levels.length === 0) {
-                container.innerHTML = `<div class="text-xs text-blue-200 bg-white/10 p-3 rounded-xl">此雲端資料夾尚無子資料夾，您可透過右上方「自訂資料夾結構」新增。</div>`;
-                return;
-            }
-
-            container.innerHTML = levels.map(lvl => {
-                const isLevelLocked = Boolean(lvl.selectedValue);
-                return `
-                <div class="bg-white/10 border ${isLevelLocked ? 'border-amber-400/40' : 'border-white/20'} rounded-xl p-3 backdrop-blur-sm transition">
-                    <div class="flex items-center justify-between gap-2 text-xs mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-white">${lvl.label}</span>
-                            ${isLevelLocked 
-                                ? `<span class="bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 px-2 py-0.5 rounded-full text-[11px] flex items-center gap-1">
-                                     <i class="fa-solid fa-check-double text-[10px]"></i>已全選（下方已隱藏）
-                                   </span>`
-                                : `<span class="bg-amber-500/25 border border-amber-400/40 text-amber-200 px-2 py-0.5 rounded-full text-[11px]">
-                                     未全選
-                                   </span>`
-                            }
-                        </div>
-                        ${isLevelLocked ? `
-                            <button 
-                                onclick="unselectMasterFromLevel(${lvl.levelIndex})"
-                                class="mobile-touch-btn text-[11px] text-rose-200 hover:text-white bg-rose-500/25 hover:bg-rose-500/40 px-2.5 py-1 rounded-lg transition shrink-0"
-                            >
-                                取消此層全選
-                            </button>
-                        ` : ''}
-                    </div>
-
-                    <div class="flex flex-wrap gap-2">
-                        ${lvl.options.map((opt, optIdx) => {
-                            const isSelected = (opt === lvl.selectedValue);
-                            return `
-                                <button 
-                                    type="button"
-                                    onclick="handleMasterLevelButtonClick(${lvl.levelIndex}, ${optIdx})"
-                                    class="mobile-touch-btn px-3.5 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 active:scale-95 ${
-                                        isSelected 
-                                            ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 ring-2 ring-white' 
-                                            : 'bg-white/15 hover:bg-white/25 text-white border border-white/15'
-                                    }"
-                                >
-                                    <i class="fa-solid ${isSelected ? 'fa-folder-open text-slate-900' : 'fa-folder text-amber-300'}"></i>
-                                    <span>${escapeHtml(opt)}</span>
-                                </button>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-                `;
-            }).join('');
-
-            const previewEl = document.getElementById('masterFullPathPreview');
-            const badgeEl = document.getElementById('hiddenLevelsNoticeBadge');
-            if (masterSelectedPath.length > 0) {
-                previewEl.textContent = `${currentDriveTree.rootName} / ${masterSelectedPath.join(' / ')}`;
-                badgeEl.textContent = selectAllChecked ? `已隱藏下方相同按鈕` : `未打勾全部選取`;
-            } else {
-                previewEl.textContent = `尚未全選（下方顯示完整按鈕）`;
-                badgeEl.textContent = `顯示完整按鈕`;
-            }
-        }
-
-        function handleMasterLevelButtonClick(levelIndex, optionIndex) {
-            const levels = getMasterButtonLevelsData(masterSelectedPath);
-            const targetLevel = levels.find(l => l.levelIndex === levelIndex);
-            if (!targetLevel) return;
-
-            const clickedValue = targetLevel.options[optionIndex];
-            if (!clickedValue) return;
-
-            if (masterSelectedPath[levelIndex] === clickedValue) {
-                unselectMasterFromLevel(levelIndex);
-                return;
-            }
-
-            const updatedPrefix = masterSelectedPath.slice(0, levelIndex);
-            updatedPrefix.push(clickedValue);
-            masterSelectedPath = sanitizePartialMasterPath(updatedPrefix);
-
-            const selectAllCb = document.getElementById('selectAllCheckbox');
-            if (selectAllCb && !selectAllCb.checked) {
-                selectAllCb.checked = true;
-                imageItems.forEach(item => { item.selected = true; });
-            }
-
-            renderMasterCascadingMenus();
-            applyMasterPathToSelected(true);
-            updateCountersAndSelectionUI();
-        }
-
-        function unselectMasterFromLevel(levelIndex) {
-            masterSelectedPath = masterSelectedPath.slice(0, levelIndex);
-            renderMasterCascadingMenus();
-            renderImageCards();
-            showToast(`已開放第 ${levelIndex + 1} 層由下方個別點選`, "info");
-        }
-
-        function unlockDeepestMasterLevel() {
-            const fullLeaf = normalizePathToLeaf(masterSelectedPath);
-            if (fullLeaf.length > 1) {
-                masterSelectedPath = fullLeaf.slice(0, fullLeaf.length - 1);
-            } else {
-                masterSelectedPath = [];
-            }
-            renderMasterCascadingMenus();
-            renderImageCards();
-            showToast("已開放最底層子資料夾按鈕！", "info");
-        }
-
-        function lockAllMasterLevels() {
-            masterSelectedPath = normalizePathToLeaf(masterSelectedPath);
-            const selectAllCb = document.getElementById('selectAllCheckbox');
-            if (selectAllCb) selectAllCb.checked = true;
-            imageItems.forEach(item => {
-                item.selected = true;
-                item.isCustomEditing = false;
-            });
-            renderMasterCascadingMenus();
-            applyMasterPathToSelected(true);
-            updateCountersAndSelectionUI();
-            showToast("已全選至最底層子資料夾！", "success");
-        }
-
-        function applyMasterPathToSelected(silent = false) {
-            let updatedCount = 0;
-            imageItems.forEach(item => {
-                if (item.selected && item.status !== 'uploading') {
-                    const mergedPath = [...masterSelectedPath, ...item.folderPath.slice(masterSelectedPath.length)];
-                    item.folderPath = normalizePathToLeaf(mergedPath);
-                    item.isCustomEditing = false;
-                    updatedCount++;
-                }
-            });
-
-            renderImageCards();
-            if (!silent) {
-                if (updatedCount > 0) {
-                    showToast(`已套用至 ${updatedCount} 張勾選圖片`, "success");
-                } else {
-                    showToast("請先勾選圖片", "warning");
-                }
-            }
-        }
-
-        function isSafariSupportedImage(file) {
-            if (file.type && file.type.startsWith('image/')) return true;
-            const ext = (file.name || '').split('.').pop().toLowerCase();
-            return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'bmp', 'avif', 'tif', 'tiff'].includes(ext);
-        }
-
-        function createSafariOptimizedThumbnail(file) {
-            return new Promise(resolve => {
-                const rawObjectUrl = URL.createObjectURL(file);
-                const img = new Image();
-
-                img.onload = function () {
-                    try {
-                        const maxDim = 280;
-                        let w = img.width || maxDim;
-                        let h = img.height || maxDim;
-                        if (w > h && w > maxDim) {
-                            h = Math.round((h * maxDim) / w);
-                            w = maxDim;
-                        } else if (h >= w && h > maxDim) {
-                            w = Math.round((w * maxDim) / h);
-                            h = maxDim;
-                        }
-
-                        const canvas = document.createElement('canvas');
-                        canvas.width = w;
-                        canvas.height = h;
-                        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-                        ctx.imageSmoothingEnabled = true;
-                        ctx.imageSmoothingQuality = 'high';
-                        ctx.drawImage(img, 0, 0, w, h);
-
-                        canvas.toBlob(blob => {
-                            if (blob) {
-                                URL.revokeObjectURL(rawObjectUrl);
-                                resolve(URL.createObjectURL(blob));
-                            } else {
-                                resolve(rawObjectUrl);
-                            }
-                        }, 'image/jpeg', 0.82);
-                    } catch (err) {
-                        resolve(rawObjectUrl);
-                    }
-                };
-
-                img.onerror = function () {
-                    URL.revokeObjectURL(rawObjectUrl);
-                    const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="280" viewBox="0 0 280 280"><rect width="280" height="280" fill="#eff6ff"/><text x="140" y="130" font-size="54" text-anchor="middle">🖼️</text><text x="140" y="175" font-size="20" font-family="sans-serif" font-weight="bold" fill="#1d4ed8" text-anchor="middle">圖片檔案</text></svg>`;
-                    resolve('data:image/svg+xml;utf8,' + encodeURIComponent(fallbackSvg));
-                };
-
-                img.src = rawObjectUrl;
-            });
-        }
-
-        async function handleFilesSelected(event) {
-            const files = Array.from(event.target.files || []);
-            if (files.length === 0) return;
-            await addFilesToQueue(files);
-            event.target.value = '';
-        }
-
-        async function addFilesToQueue(files) {
-            const validFiles = files.filter(isSafariSupportedImage);
-            if (validFiles.length === 0) {
-                showToast("未偵測到支援的圖片", "warning");
-                return;
-            }
-
-            const defaultPath = normalizePathToLeaf(masterSelectedPath);
-            for (const file of validFiles) {
-                const thumbUrl = await createSafariOptimizedThumbnail(file);
-                imageItems.push({
-                    id: 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
-                    name: file.name,
-                    fileObj: file,
-                    sizeText: formatFileSize(file.size),
-                    previewUrl: thumbUrl,
-                    selected: true,
-                    isCustomEditing: false,
-                    folderPath: [...defaultPath],
-                    progress: 0,
-                    status: 'pending'
-                });
-            }
-
-            renderImageCards();
-            updateCountersAndSelectionUI();
-            showToast(`已加入 ${validFiles.length} 張圖片`, "success");
-        }
-
-        function removeSingleImage(imageId) {
-            const targetIndex = imageItems.findIndex(item => item.id === imageId);
-            if (targetIndex === -1) return;
-
-            const removedItem = imageItems[targetIndex];
-            if (removedItem.previewUrl && removedItem.previewUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(removedItem.previewUrl);
-            }
-
-            imageItems.splice(targetIndex, 1);
-            renderImageCards();
-            updateCountersAndSelectionUI();
-            showToast(`已移除圖片`, "info");
-        }
-
-        function removeSelectedImages() {
-            const selectedList = imageItems.filter(i => i.selected);
-            if (selectedList.length === 0) {
-                showToast("未勾選任何圖片", "warning");
-                return;
-            }
-            imageItems = imageItems.filter(item => {
-                if (item.selected) {
-                    if (item.previewUrl && item.previewUrl.startsWith('blob:')) {
-                        URL.revokeObjectURL(item.previewUrl);
-                    }
-                    return false;
-                }
-                return true;
-            });
-            renderImageCards();
-            updateCountersAndSelectionUI();
-            showToast(`已移除 ${selectedList.length} 張圖片`, "info");
-        }
-
-        function clearAllImages() {
-            if (imageItems.length === 0) return;
-            imageItems.forEach(item => {
-                if (item.previewUrl && item.previewUrl.startsWith('blob:')) {
-                    URL.revokeObjectURL(item.previewUrl);
-                }
-            });
-            imageItems = [];
-            isUploading = false;
-            cancelUploadRequested = true;
-            document.getElementById('overallProgressWrapper').classList.add('hidden');
-            renderImageCards();
-            updateCountersAndSelectionUI();
-            showToast("已清空全部圖片", "info");
-        }
-
-        function addDemoImages() {
-            const canvas1 = document.createElement('canvas');
-            canvas1.width = 300; canvas1.height = 300;
-            const ctx1 = canvas1.getContext('2d');
-            ctx1.fillStyle = '#3b82f6'; ctx1.fillRect(0, 0, 300, 300);
-            ctx1.fillStyle = '#ffffff'; ctx1.font = 'bold 24px sans-serif'; ctx1.fillText('範例圖片 01', 80, 150);
-
-            canvas1.toBlob(async blob => {
-                if (blob) {
-                    const demoFile = new File([blob], "demo_photo_1.jpg", { type: "image/jpeg" });
-                    await addFilesToQueue([demoFile]);
-                }
-            }, 'image/jpeg');
-        }
-
-        function toggleSelectAllImages(checked) {
-            imageItems.forEach(item => {
-                item.selected = checked;
-                if (checked) {
-                    item.isCustomEditing = false;
-                    const mergedPath = [...masterSelectedPath, ...item.folderPath.slice(masterSelectedPath.length)];
-                    item.folderPath = normalizePathToLeaf(mergedPath);
-                }
-            });
-            renderMasterCascadingMenus();
-            renderImageCards();
-            updateCountersAndSelectionUI();
-        }
-
-        function toggleSingleImageSelection(imageId, checked) {
-            const item = imageItems.find(i => i.id === imageId);
-            if (item) {
-                item.selected = checked;
-                if (checked) {
-                    item.isCustomEditing = false;
-                    const mergedPath = [...masterSelectedPath, ...item.folderPath.slice(masterSelectedPath.length)];
-                    item.folderPath = normalizePathToLeaf(mergedPath);
-                }
-            }
-            updateCountersAndSelectionUI();
-            renderMasterCascadingMenus();
-            renderImageCards();
-        }
-
-        function toggleCustomEditImage(imageId) {
-            const item = imageItems.find(i => i.id === imageId);
-            if (!item) return;
-            item.isCustomEditing = !item.isCustomEditing;
-            renderImageCards();
-        }
-
-        function handleImageLevelButtonClick(imageId, levelIndex, optionIndex) {
-            const item = imageItems.find(i => i.id === imageId);
-            if (!item || item.status === 'uploading') return;
-
-            const levels = getCascadingLevelsData(item.folderPath);
-            const targetLevel = levels.find(l => l.levelIndex === levelIndex);
-            if (!targetLevel) return;
-
-            const newValue = targetLevel.options[optionIndex];
-            if (!newValue) return;
-
-            const updatedPath = item.folderPath.slice(0, levelIndex);
-            updatedPath.push(newValue);
-            item.folderPath = normalizePathToLeaf(updatedPath);
-
-            if (item.status === 'completed') {
-                item.status = 'pending';
-                item.progress = 0;
-            }
-
-            renderImageCards();
-            updateCountersAndSelectionUI();
-        }
-
-        function copyThisImagePathToAll(imageId) {
-            const sourceItem = imageItems.find(i => i.id === imageId);
-            if (!sourceItem) return;
-
-            masterSelectedPath = [...sourceItem.folderPath];
-            imageItems.forEach(item => {
-                if (item.status !== 'uploading') {
-                    item.folderPath = [...sourceItem.folderPath];
-                    item.selected = true;
-                    item.isCustomEditing = false;
-                }
-            });
-
-            renderMasterCascadingMenus();
-            renderImageCards();
-            updateCountersAndSelectionUI();
-            showToast("已套用至全部圖片！", "success");
-        }
-
-        function renderImageCards() {
-            const container = document.getElementById('imageCardsContainer');
-            const emptyBox = document.getElementById('emptyStateBox');
-
-            if (imageItems.length === 0) {
-                container.innerHTML = '';
-                emptyBox.classList.remove('hidden');
-                return;
-            }
-
-            emptyBox.classList.add('hidden');
-
-            container.innerHTML = imageItems.map((item, idx) => {
-                item.folderPath = normalizePathToLeaf(item.folderPath);
-                const allLevels = getCascadingLevelsData(item.folderPath);
-                const lockedDepth = (item.selected && !item.isCustomEditing) ? masterSelectedPath.length : 0;
-                const visibleLevels = allLevels.filter(lvl => lvl.levelIndex >= lockedDepth);
-                const hiddenCount = allLevels.length - visibleLevels.length;
-
-                let statusBadgeHtml = `<span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">待上傳</span>`;
-                if (item.status === 'uploading') {
-                    statusBadgeHtml = `<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fa-solid fa-spinner fa-spin mr-1"></i>上傳中 ${item.progress}%</span>`;
-                } else if (item.status === 'completed') {
-                    statusBadgeHtml = `<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><i class="fa-solid fa-check mr-1"></i>已上傳雲端</span>`;
-                }
-
-                return `
-                <div id="card_${item.id}" class="bg-white rounded-2xl p-3.5 shadow-sm border transition ${item.selected ? 'border-blue-300 ring-2 ring-blue-500/30' : 'border-slate-200'} flex flex-col justify-between gap-3">
-                    <div class="flex items-start gap-3">
-                        <div class="pt-1">
-                            <input 
-                                type="checkbox" 
-                                ${item.selected ? 'checked' : ''} 
-                                onchange="toggleSingleImageSelection('${item.id}', this.checked)"
-                                class="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                            >
-                        </div>
-
-                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative">
-                            <img src="${item.previewUrl}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" class="w-full h-full object-cover">
-                            <span class="absolute bottom-1 right-1 bg-black/65 text-white text-[10px] font-bold px-1.5 py-0.2 rounded">
-                                #${idx + 1}
-                            </span>
-                        </div>
-
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-start justify-between gap-2">
-                                <h4 class="font-bold text-slate-800 text-xs sm:text-sm truncate" title="${escapeHtml(item.name)}">
-                                    ${escapeHtml(item.name)}
-                                </h4>
-                                <button 
-                                    onclick="removeSingleImage('${item.id}')" 
-                                    class="mobile-touch-btn text-xs text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1 shrink-0"
-                                >
-                                    <i class="fa-solid fa-xmark"></i>
-                                    <span>取消</span>
-                                </button>
-                            </div>
-
-                            <div class="flex items-center gap-2 mt-1">
-                                <span class="text-xs text-slate-400">${item.sizeText}</span>
-                                ${statusBadgeHtml}
-                            </div>
-
-                            <div class="mt-2 w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div 
-                                    id="prog_${item.id}" 
-                                    class="h-full transition-all duration-150 rounded-full ${item.status === 'completed' ? 'bg-emerald-500' : 'bg-blue-600'}" 
-                                    style="width: ${item.progress}%"
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200/80 space-y-2">
-                        <div class="flex items-center justify-between gap-2 text-[11px] text-slate-500 flex-wrap">
-                            <span class="font-semibold text-slate-700 flex items-center gap-1">
-                                <i class="fa-regular fa-folder-open text-blue-600"></i>
-                                ${hiddenCount > 0 ? `已隱藏上方全選的 ${hiddenCount} 層按鈕` : `選擇雲端子資料夾`}
-                            </span>
-
-                            <div class="flex items-center gap-2">
-                                ${item.selected && masterSelectedPath.length > 0 ? `
-                                    <button 
-                                        type="button"
-                                        onclick="toggleCustomEditImage('${item.id}')" 
-                                        class="mobile-touch-btn text-xs px-2.5 py-1 rounded-md font-medium transition ${
-                                            item.isCustomEditing ? 'bg-amber-100 text-amber-800' : 'bg-blue-50 text-blue-600'
-                                        }"
-                                    >
-                                        ${item.isCustomEditing ? '收合' : '個別修改'}
-                                    </button>
-                                ` : ''}
-                                <button 
-                                    type="button"
-                                    onclick="copyThisImagePathToAll('${item.id}')" 
-                                    class="mobile-touch-btn text-blue-600 hover:text-blue-800 font-medium underline py-1"
-                                >
-                                    套用到全部
-                                </button>
-                            </div>
-                        </div>
-
-                        ${visibleLevels.length === 0 ? `
-                            <div class="bg-emerald-50/80 border border-emerald-200/80 rounded-lg px-2.5 py-1.5 flex items-center justify-between text-xs text-emerald-800">
-                                <span class="flex items-center gap-1.5 truncate">
-                                    <i class="fa-solid fa-eye-slash text-emerald-600 shrink-0"></i>
-                                    <span class="truncate">已套用上方全選設定，相同按鈕已隱藏</span>
-                                </span>
-                            </div>
-                        ` : `
-                            <div class="space-y-2">
-                                ${visibleLevels.map(lvl => `
-                                    <div class="bg-white rounded-lg p-2 border border-slate-200/80">
-                                        <span class="block text-[10px] font-semibold text-slate-400 mb-1.5">${lvl.label}：</span>
-                                        <div class="flex flex-wrap gap-1.5">
-                                            ${lvl.options.map((opt, optIdx) => {
-                                                const isSelected = (opt === lvl.selectedValue);
-                                                return `
-                                                    <button 
-                                                        type="button"
-                                                        onclick="handleImageLevelButtonClick('${item.id}', ${lvl.levelIndex}, ${optIdx})"
-                                                        ${item.status === 'uploading' ? 'disabled' : ''}
-                                                        class="mobile-touch-btn px-3 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1 active:scale-95 disabled:opacity-50 ${
-                                                            isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                                                        }"
-                                                    >
-                                                        <i class="fa-solid ${isSelected ? 'fa-folder-open' : 'fa-folder text-slate-400'} text-[11px]"></i>
-                                                        <span>${escapeHtml(opt)}</span>
-                                                    </button>
-                                                `;
-                                            }).join('')}
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        `}
-
-                        <div class="pt-1 border-t border-slate-200/70 flex items-center gap-1.5 text-[11px] text-slate-600 truncate">
-                            <i class="fa-solid fa-turn-up rotate-90 text-blue-500 ml-1 shrink-0"></i>
-                            <span class="text-slate-400 shrink-0">將上傳至：</span>
-                            <span class="font-semibold text-blue-700 truncate" title="${escapeHtml(item.folderPath.join(' / '))}">
-                                ${escapeHtml(item.folderPath.join(' ➔ ') || '根目錄')}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                `;
-            }).join('');
-        }
-
-        function updateCountersAndSelectionUI() {
-            const total = imageItems.length;
-            const selectedCount = imageItems.filter(i => i.selected).length;
-
-            document.getElementById('selectedCountBadge').textContent = `已選 ${selectedCount} / ${total} 張`;
-            document.getElementById('totalImagesCounter').textContent = `(共 ${total} 張)`;
-            document.getElementById('readyUploadCount').textContent = total;
-
-            const selectAllCb = document.getElementById('selectAllCheckbox');
-            selectAllCb.checked = total > 0 && selectedCount === total;
-            selectAllCb.indeterminate = selectedCount > 0 && selectedCount < total;
-        }
-
-        // 實際將圖片上傳至對應的 Google 雲端硬碟資料夾 (Multipart Upload API v3)
+        // 實際將圖片上傳至對應的真實 Google 雲端硬碟資料夾 (Multipart Upload API v3)
         async function startBatchUpload() {
             if (isUploading) return;
             if (imageItems.length === 0) {
                 showToast("請先加入要上傳的圖片！", "warning");
+                return;
+            }
+            if (!accessToken) {
+                showToast("尚未登入 Google 帳號，無法上傳至雲端硬碟！", "warning");
+                handleGoogleAuthClick();
                 return;
             }
 
@@ -1261,60 +581,52 @@
 
                 const currentItem = pendingItems[i];
                 currentItem.status = 'uploading';
-                currentItem.progress = 0;
+                currentItem.progress = 10;
                 renderImageCards();
 
-                const targetFolderPathStr = currentItem.folderPath.join(' / ') || '根目錄';
-
                 try {
-                    // 若有真實 accessToken，透過 Google Drive API 上傳至對應資料夾
-                    if (accessToken && !accessToken.startsWith("simulated_")) {
-                        // 尋找或建立目標資料夾 ID (此處簡化為上傳至根目錄或指定 folderId)
-                        const metadata = {
-                            name: currentItem.name,
-                            mimeType: currentItem.fileObj ? currentItem.fileObj.type : 'image/jpeg'
-                        };
+                    // 1. 根據路徑動態尋找或建立目標資料夾 ID
+                    let targetFolderId = await getOrCreateFolderPathId(currentItem.folderPath);
 
-                        const form = new FormData();
-                        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                        if (currentItem.fileObj) {
-                            form.append('file', currentItem.fileObj);
-                        }
+                    // 2. 執行真實 Google 雲端硬碟 Multipart 上傳
+                    const metadata = {
+                        name: currentItem.name,
+                        parents: [targetFolderId],
+                        mimeType: currentItem.fileObj ? currentItem.fileObj.type : 'image/jpeg'
+                    };
 
-                        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${accessToken}` },
-                            body: form
-                        });
-
-                        if (!res.ok) throw new Error('上傳失敗');
-                    } else {
-                        // 模擬真實上傳進度
-                        const steps = [25, 50, 75, 100];
-                        for (const stepVal of steps) {
-                            if (cancelUploadRequested) break;
-                            await sleep(140);
-                            currentItem.progress = stepVal;
-
-                            const singleBar = document.getElementById(`prog_${currentItem.id}`);
-                            if (singleBar) singleBar.style.width = `${stepVal}%`;
-
-                            const overallPercent = Math.round(((completedCount + (stepVal / 100)) / totalToUpload) * 100);
-                            overallBar.style.width = `${overallPercent}%`;
-                            overallStats.textContent = `${completedCount} / ${totalToUpload} 張 (${overallPercent}%)`;
-                            overallStatusText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 上傳至 [${escapeHtml(targetFolderPathStr)}]：${escapeHtml(currentItem.name)}`;
-                        }
+                    const form = new FormData();
+                    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                    if (currentItem.fileObj) {
+                        form.append('file', currentItem.fileObj);
                     }
 
-                    if (!cancelUploadRequested) {
-                        currentItem.status = 'completed';
-                        currentItem.progress = 100;
-                        completedCount++;
-                        renderImageCards();
-                    }
+                    currentItem.progress = 50;
+                    renderImageCards();
+
+                    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${accessToken}` },
+                        body: form
+                    });
+
+                    if (!res.ok) throw new Error('Google 雲端上傳失敗');
+
+                    currentItem.status = 'completed';
+                    currentItem.progress = 100;
+                    completedCount++;
+                    renderImageCards();
+
+                    const overallPercent = Math.round((completedCount / totalToUpload) * 100);
+                    overallBar.style.width = `${overallPercent}%`;
+                    overallStats.textContent = `${completedCount} / ${totalToUpload} 張 (${overallPercent}%)`;
+                    overallStatusText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 已上傳：${escapeHtml(currentItem.name)}`;
+
                 } catch (err) {
+                    console.error(err);
                     currentItem.status = 'pending';
                     currentItem.progress = 0;
+                    showToast(`上傳 ${currentItem.name} 失敗`, "warning");
                 }
             }
 
@@ -1323,14 +635,52 @@
             startBtn.disabled = false;
 
             if (cancelUploadRequested) {
-                overallStatusText.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-500"></i> 雲端上傳已中斷`;
-                showToast("已中斷雲端上傳", "warning");
+                overallStatusText.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-500"></i> 上傳已中斷`;
+                showToast("已中斷上傳", "warning");
             } else {
                 overallBar.style.width = '100%';
                 overallStats.textContent = `${totalToUpload} / ${totalToUpload} 張 (100%)`;
-                overallStatusText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600"></i> 所有圖片已成功上傳至對應雲端硬碟資料夾！`;
+                overallStatusText.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600"></i> 所有圖片已成功上傳至真實 Google 雲端硬碟！`;
                 showToast(`🎉 成功上傳 ${totalToUpload} 張圖片至 Google 雲端硬碟！`, "success");
             }
+        }
+
+        // 依據資料夾路徑字串陣列，在雲端硬碟中尋找或自動建立對應資料夾 ID
+        async function getOrCreateFolderPathId(pathSegments) {
+            let currentParentId = currentDriveTree.folderId || "root";
+            if (!pathSegments || pathSegments.length === 0) return currentParentId;
+
+            let currentNode = currentDriveTree;
+            for (const segName of pathSegments) {
+                let foundChild = (currentNode.children || []).find(c => c.name === segName);
+                if (foundChild) {
+                    currentParentId = foundChild.folderId;
+                    currentNode = foundChild;
+                } else {
+                    // 若雲端無此資料夾則透過 API 自動建立
+                    const metadata = {
+                        name: segName,
+                        mimeType: 'application/vnd.google-apps.folder',
+                        parents: [currentParentId]
+                    };
+                    const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(metadata)
+                    });
+                    const newFolderData = await res.json();
+                    currentParentId = newFolderData.id;
+
+                    const newNode = { name: segName, folderId: currentParentId, children: [] };
+                    if (!currentNode.children) currentNode.children = [];
+                    currentNode.children.push(newNode);
+                    currentNode = newNode;
+                }
+            }
+            return currentParentId;
         }
 
         function cancelOngoingUpload() {
