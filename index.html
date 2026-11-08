@@ -3,1656 +3,1441 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工程白板局部放大檢視、快速填寫改名 & 分 Tower 匯出 Word 工具</title>
+    <title>工程白板局部放大填寫與分Tower匯出工具</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- EXIF 讀取套件 -->
-    <script src="https://cdn.jsdelivr.net/npm/exifreader@4.23.3/dist/exif-reader.min.js"></script>
-    <!-- JSZip 打包改名後的照片與多個 Word 檔 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <!-- docx.js 產生標準 .docx Word 檔案 -->
+    <!-- Google Fonts: Inter & Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- docx.js 用於產生標準 .docx 檔案 -->
     <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- JSZip & FileSaver 用於打包下載改名後的照片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
     <style>
-        body { font-family: 'Inter', 'Microsoft JhengHei', sans-serif; }
-        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .zoom-canvas-container {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .zoom-canvas-container:active {
+            cursor: grabbing;
+        }
+        /* 隱藏數字輸入框預設上下箭頭，改用自訂 + / - 按鈕 */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen p-4 md:p-6">
+<body class="min-h-screen text-slate-800 pb-16">
 
-    <div class="max-w-7xl mx-auto space-y-5">
-        <!-- 頂部標題欄 -->
-        <header class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <!-- 頂部導覽列 -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-2xl shadow-sm">
-                    工
+                <div class="bg-blue-600 p-2 rounded-xl shadow">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                    </svg>
                 </div>
                 <div>
-                    <h1 class="text-xl md:text-2xl font-bold text-slate-900">工程白板放大檢視、快速填寫 & 分 Tower 匯出 Word 工具</h1>
-                    <p class="text-sm text-slate-500">上傳照片即自動放大白板區域並套用預設名稱，支援「內喉 / 企身 / 大喉」標籤、Tower / Floor / Flat 快速填寫，並可依 Tag 與 Tower 分檔匯出 Word</p>
+                    <h1 class="text-lg font-bold tracking-tight">工程白板放大填寫 ＆ 分 Tower 匯出 Word / ZIP 工具</h1>
+                    <p class="text-xs text-slate-400">支援滾輪縮放、按住拖曳、圖片旋轉、批次套用 Floor、同單位自動編號與一頁一圖 Word 匯出</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold">
-                    🔍 支援白板自動鎖定放大 + 手動拖拽微調位置
-                </span>
+                <button id="loadDemoBtn" class="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3.5 py-2 rounded-lg transition shadow-sm">
+                    ✨ 載入 4 張測試工程照片
+                </button>
+                <button id="clearAllBtn" class="text-xs bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white px-3.5 py-2 rounded-lg transition border border-slate-700">
+                    🗑️ 清空全部
+                </button>
             </div>
-        </header>
+        </div>
+    </header>
 
-        <!-- 上方設定區 -->
+    <!-- 頂部提示訊息列 (取代 alert) -->
+    <div id="toastBanner" class="hidden fixed bottom-5 right-5 z-50 max-w-md bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all">
+        <span id="toastIcon" class="text-lg">✅</span>
+        <span id="toastText" class="text-sm font-medium">操作完成</span>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 mt-6 space-y-6">
+
+        <!-- 步驟 1 ~ 3 控制面板 -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <!-- 左側：1. 匯入照片 與 2. 預設名稱/批次快速設定 -->
-            <div class="lg:col-span-7 space-y-5">
-                <!-- 1. 選擇照片資料夾 -->
-                <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-                    <h2 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs flex items-center justify-center font-bold">1</span>
-                        匯入工程照片（自動擷取拍攝時間、預設名稱並局部放大白板）
-                    </h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-50 rounded-xl cursor-pointer transition">
-                            <span class="text-blue-600 font-semibold text-sm">📁 點此選擇整個「照片資料夾」</span>
-                            <span class="text-xs text-slate-500 mt-1">自動載入資料夾內所有圖片</span>
-                            <input type="file" id="folderInput" webkitdirectory directory multiple accept="image/*" class="hidden">
+
+            <!-- 步驟 1：上傳照片區 -->
+            <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">步驟 1</span>
+                        <h2 class="font-bold text-slate-800">讀取工程照片資料夾</h2>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-3">
+                        讀取時會自動嘗試從原檔名解析 <code class="bg-slate-100 px-1 rounded text-blue-700">Tower</code>、<code class="bg-slate-100 px-1 rounded text-blue-700">Floor</code>、<code class="bg-slate-100 px-1 rounded text-blue-700">Flat</code>，並自動尋找白板位置局部放大。
+                    </p>
+
+                    <div class="grid grid-cols-1 gap-2.5">
+                        <label class="cursor-pointer flex items-center justify-center gap-2 border-2 border-dashed border-blue-400 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-bold py-4 px-4 rounded-xl transition text-center">
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                            </svg>
+                            <span>📁 選擇整個照片資料夾</span>
+                            <input id="folderInput" type="file" webkitdirectory directory multiple accept="image/*" class="hidden">
                         </label>
-                        <label class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer transition">
-                            <span class="text-slate-700 font-semibold text-sm">🖼️ 點此多選「照片檔案」</span>
-                            <span class="text-xs text-slate-500 mt-1">支援 JPG / PNG / WEBP</span>
-                            <input type="file" id="filesInput" multiple accept="image/*" class="hidden">
+
+                        <label class="cursor-pointer flex items-center justify-center gap-2 border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold py-2.5 px-4 rounded-xl transition text-sm text-center">
+                            <span>🖼️ 或選擇多張照片檔案</span>
+                            <input id="filesInput" type="file" multiple accept="image/*" class="hidden">
                         </label>
                     </div>
-                    <div id="fileCountInfo" class="mt-3 text-xs text-slate-600 bg-slate-100 rounded-lg px-3 py-2 flex flex-wrap items-center justify-between gap-2">
-                        <span>目前尚未選擇照片（可點擊右方載入模擬白板照片測試）</span>
-                        <button id="loadDemoBtn" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 rounded-md text-slate-700 font-semibold shadow-sm transition">
-                            載入 4 張模擬白板照片 (不同 Tower & 喉管 Tag)
-                        </button>
-                    </div>
-                </section>
+                </div>
 
-                <!-- 2. 預設名稱與預設 Tag 設定 -->
-                <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs flex items-center justify-center font-bold">2</span>
-                        預設名稱、喉管 Tag 與命名格式設定
-                    </h2>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span>目前已載入照片：</span>
+                    <span id="loadedCountBadge" class="font-bold text-blue-600 text-sm">0 張</span>
+                </div>
+            </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">上傳時的「預設名稱」<code class="text-blue-600">{default}</code>：</label>
-                            <div class="flex gap-1.5">
-                                <input id="defaultBaseNameInput" type="text" value="工程相片" placeholder="例如：工程相片、喉管查驗" class="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
-                                <button id="applyDefaultNameAllBtn" type="button" class="shrink-0 px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition" title="套用到目前所有照片">
-                                    套用全部
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">上傳預設 Tag（或一鍵套用全部）<code class="text-blue-600">{tag}</code>：</label>
-                            <div class="flex items-center gap-1.5">
-                                <button type="button" data-default-tag="內喉" class="default-tag-btn flex-1 py-1.5 px-2 text-xs font-bold rounded-lg border transition bg-blue-600 text-white border-blue-600">
-                                    內喉
-                                </button>
-                                <button type="button" data-default-tag="企身" class="default-tag-btn flex-1 py-1.5 px-2 text-xs font-bold rounded-lg border transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">
-                                    企身
-                                </button>
-                                <button type="button" data-default-tag="大喉" class="default-tag-btn flex-1 py-1.5 px-2 text-xs font-bold rounded-lg border transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">
-                                    大喉
-                                </button>
-                            </div>
-                        </div>
+            <!-- 步驟 2：照片改名預設名稱與 Tag 設定 -->
+            <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">步驟 2</span>
+                        <h2 class="font-bold text-slate-800">照片改名預設名稱 ＆ Tag</h2>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">
-                            自動組合名稱格式（可用變數：<code class="text-blue-600">{time}</code>、<code class="text-blue-600">{default}</code>、<code class="text-blue-600">{tag}</code>、<code class="text-blue-600">{tower}</code>、<code class="text-blue-600">{floor}</code>、<code class="text-blue-600">{flat}</code>、<code class="text-blue-600">{flat_no}</code>、<code class="text-blue-600">{location}</code>）：
-                        </label>
-                        <input id="nameFormat" type="text" value="{time}-{default}-{tag}-{location}" class="w-full font-mono text-xs px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <div class="flex flex-wrap gap-1.5 mt-2">
-                            <button type="button" data-fmt="{time}-{default}-{tag}-{location}" class="fmt-btn text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition">
-                                時間-預設名稱-Tag-地點
-                            </button>
-                            <button type="button" data-fmt="{default}-{tag}-{location}" class="fmt-btn text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition">
-                                預設名稱-Tag-地點
-                            </button>
-                            <button type="button" data-fmt="{time}-{location}-{tag}" class="fmt-btn text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition">
-                                時間-地點-Tag
-                            </button>
-                        </div>
-                        <p class="text-[11px] text-slate-500 mt-1">
-                            註：<code class="bg-slate-100 px-1 rounded">{tower}</code> 自動加前綴 <strong>Tower</strong>、<code class="bg-slate-100 px-1 rounded">{floor}</code> 自動加後綴 <strong>F</strong>；當多張照片的 <strong>Flat 欄位相同</strong>時，會自動在新欄位產生編號 <code class="bg-slate-100 px-1 rounded">{flat_no}</code> 並併入 <code class="bg-slate-100 px-1 rounded">{location}</code>。
-                        </p>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">預設名稱（用於 ZIP 照片改名）：</label>
+                        <input id="defaultBaseNameInput" type="text" value="工程相片" placeholder="例如：工程相片"
+                            class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 focus:border-blue-500 focus:outline-none font-medium">
                     </div>
 
-                    <div class="grid grid-cols-1 gap-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">時間格式 <code class="text-blue-600">{time}</code>：</label>
-                            <select id="timeFormat" class="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white">
-                                <option value="YYYYMMDD">20261105 (年月日)</option>
-                                <option value="YYYY-MM-DD">2026-11-05 (含橫線)</option>
-                                <option value="YYYYMMDD_HHmm">20261105_1430 (含時分)</option>
-                            </select>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">選擇加入照片檔名的 Tag（Word 檔不顯示 Tag）：</label>
+                        <div class="grid grid-cols-3 gap-2" id="globalTagButtons">
+                            <button type="button" data-tag="內喉" class="tag-btn py-2 px-3 rounded-xl text-sm font-bold border-2 border-blue-600 bg-blue-600 text-white transition">
+                                內喉
+                            </button>
+                            <button type="button" data-tag="企身" class="tag-btn py-2 px-3 rounded-xl text-sm font-bold border-2 border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition">
+                                企身
+                            </button>
+                            <button type="button" data-tag="大喉" class="tag-btn py-2 px-3 rounded-xl text-sm font-bold border-2 border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition">
+                                大喉
+                            </button>
                         </div>
                     </div>
+                </div>
 
-                    <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
-                        即時預覽檔名：<span id="formatPreview" class="font-mono font-bold">20261105-工程相片-內喉-Tower1_12F_A.jpg</span>
-                    </div>
-                </section>
+                <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                    <div class="text-slate-500">ZIP 照片改名格式預覽：</div>
+                    <div id="zipNamePreview" class="font-mono font-bold text-blue-700 break-all">工程相片_內喉_Tower1_12F_A-1.jpg</div>
+                    <div class="text-slate-400 text-[11px]">* Word 內文只顯示 <span class="font-semibold text-slate-600">Tower1 12F A</span>（不含預設名、Tag 及編號）</div>
+                </div>
             </div>
 
-            <!-- 右側：3. 輸出篩選設定（選 Tag & 是否分開不同 Tower 輸出 Word） -->
-            <div class="lg:col-span-5 space-y-5">
-                <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs flex items-center justify-center font-bold">3</span>
-                        匯出 Word 與照片篩選設定（依 Tag & Tower 分檔）
-                    </h2>
-
-                    <!-- 步驟 A：選擇要輸出的 Tag -->
-                    <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                        <label class="block text-xs font-bold text-slate-800">
-                            步驟 A：選擇要匯出的「內喉 / 企身 / 大喉」Tag：
-                        </label>
-                        <div class="grid grid-cols-4 gap-1.5" id="exportTagFilterGroup">
-                            <button type="button" data-filter-tag="ALL" class="export-tag-btn py-2 px-2 text-xs font-bold rounded-lg border transition bg-blue-600 text-white border-blue-600">
-                                全部 Tag
-                            </button>
-                            <button type="button" data-filter-tag="內喉" class="export-tag-btn py-2 px-2 text-xs font-bold rounded-lg border transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">
-                                只出「內喉」
-                            </button>
-                            <button type="button" data-filter-tag="企身" class="export-tag-btn py-2 px-2 text-xs font-bold rounded-lg border transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">
-                                只出「企身」
-                            </button>
-                            <button type="button" data-filter-tag="大喉" class="export-tag-btn py-2 px-2 text-xs font-bold rounded-lg border transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">
-                                只出「大喉」
-                            </button>
+            <!-- 步驟 3：匯出設定與統計小總結 -->
+            <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between space-y-3">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">步驟 3</span>
+                            <h2 class="font-bold text-slate-800">排序、小總結 ＆ 匯出</h2>
                         </div>
+                        <span class="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-semibold border border-emerald-200">
+                            Floor小至大 ➔ A-Z ➔ 編號
+                        </span>
                     </div>
 
-                    <!-- 步驟 B：選擇是否分開不同 Tower 輸出 -->
-                    <div class="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200 space-y-2.5">
-                        <label class="block text-xs font-bold text-blue-950">
-                            步驟 B：是否分開不同的 Tower 輸出（同時套用於 Word 與 ZIP）？
-                        </label>
-                        <label class="flex items-start gap-2.5 text-xs text-slate-800 cursor-pointer p-2 rounded-lg bg-white border border-blue-200">
-                            <input type="radio" name="splitTowerMode" value="split" checked class="mt-0.5 text-blue-600">
-                            <div>
-                                <div class="font-bold text-blue-800">✅ 分開不同 Tower 輸出（Word 分檔 / ZIP 分資料夾）</div>
-                                <div class="text-[11px] text-slate-500 mt-0.5">內部照片自動依 <strong>Floor (小到大) ➔ Flat (A到Z) ➔ 同Flat編號 (小到大)</strong> 排序</div>
-                            </div>
-                        </label>
-                        <label class="flex items-start gap-2.5 text-xs text-slate-800 cursor-pointer p-2 rounded-lg bg-white border border-slate-200">
-                            <input type="radio" name="splitTowerMode" value="single" class="mt-0.5 text-blue-600">
-                            <div>
-                                <div class="font-bold text-slate-700">📄 全部合併輸出（單一 Word 檔 / 單一 ZIP 根目錄）</div>
-                                <div class="text-[11px] text-slate-500 mt-0.5">自動依 <strong>Tower ➔ Floor (小到大) ➔ Flat (A到Z) ➔ 編號 (小到大)</strong> 排序</div>
-                            </div>
-                        </label>
+                    <!-- 是否分開不同 Tower -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">輸出分檔方式（同時套用至 Word 與 ZIP）：</label>
+                        <select id="splitTowerModeSelect" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white font-semibold text-slate-700 focus:border-blue-500 focus:outline-none">
+                            <option value="split" selected>🏢 分開不同 Tower 輸出（相同 Tower 放同一個檔案）</option>
+                            <option value="single">📑 全部合併在同一個檔案輸出</option>
+                        </select>
                     </div>
 
-                    <!-- Word 排版設定 -->
-                    <div class="space-y-2">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1">匯出 Word 檔名前綴：</label>
-                            <input id="wordFilename" type="text" value="工程照片報告" class="w-full text-xs px-3 py-1.5 border border-slate-300 rounded-lg bg-white">
+                    <!-- 匯出統計小總結 (顯示有多少個不同的單位和編號) -->
+                    <div id="exportSummaryBox" class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1.5">
+                        <div class="font-bold text-slate-800 flex items-center justify-between">
+                            <span>📊 統計小總結（單位 ＆ 編號數）：</span>
                         </div>
-                        <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                            <input id="twoPerPage" type="checkbox" class="rounded text-blue-600 hidden">
-                            <span class="font-bold text-blue-800">📄 Word 排版模式：每頁固定放 1 張照片（名稱在上方，照片在下方，每張照片獨立一頁）</span>
-                        </label>
-                    </div>
-
-                    <!-- 匯出統計預覽 -->
-                    <div id="exportSummaryBox" class="p-3 bg-slate-100 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
-                        <div class="font-bold text-slate-800">📊 預計輸出預覽：</div>
                         <div id="exportSummaryText" class="text-slate-500">尚未載入照片</div>
                     </div>
+                </div>
 
-                    <!-- 下載按鈕 -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                        <button id="downloadWordBtn" disabled class="py-3 px-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
-                            📄 匯出 Word 報告 (.docx)
-                        </button>
-                        <button id="downloadZipBtn" disabled class="py-3 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
-                            📦 下載改名後照片 (.zip)
-                        </button>
-                    </div>
-                </section>
+                <!-- 匯出按鈕群 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <button id="downloadWordBtn" disabled
+                        class="w-full py-2.5 px-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm flex items-center justify-center gap-1.5">
+                        <span>📄 匯出 Word (.docx)</span>
+                    </button>
+                    <button id="downloadZipBtn" disabled
+                        class="w-full py-2.5 px-3 rounded-xl font-bold text-sm text-slate-800 bg-amber-400 hover:bg-amber-300 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition shadow-sm flex items-center justify-center gap-1.5">
+                        <span>📦 下載改名照片 (.zip)</span>
+                    </button>
+                </div>
             </div>
+
         </div>
 
-        <!-- 4. 主要工作區域：白板局部放大檢視 + 預設名稱 / Tag / Tower / Floor / Flat 填寫區 -->
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        🔍 主要工作區：白板局部放大檢視 & 快速填寫 (Tower / Floor / Flat / Tag)
-                    </h2>
-                    <p class="text-xs text-slate-500 mt-0.5">
-                        系統已自動尋找每張照片中的白板區域並局部放大。若白板位置偏離，您也可以直接<strong>點擊左側「原圖」上的任意位置</strong>，放大鏡會立即移動到您點擊處！
-                    </p>
-                </div>
+        <!-- 主要工作區頂部：批次快速套用工具列 (套用 Floor / 套用 Tower) -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-xs text-slate-500">批量填入全部照片：</span>
-                    <input id="batchTowerInput" type="text" placeholder="Tower (如 T1)" class="w-24 text-xs px-2 py-1 border border-slate-300 rounded-md">
-                    <button id="batchTowerBtn" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-medium transition">
-                        套用 Tower
-                    </button>
-                    <button id="clearListBtn" class="text-xs text-rose-600 hover:bg-rose-50 px-2.5 py-1 border border-rose-200 rounded-md transition">
-                        清空全部
-                    </button>
+                    <span class="text-base">🛠️</span>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">主要工作區 — 批次快速套用工具</h3>
+                        <p class="text-xs text-slate-500">可一鍵將相同的 Floor 或 Tower 套用到目前所有照片，再逐張微調 Flat 單位</p>
+                    </div>
                 </div>
-            </div>
 
-            <div id="photoWorkspace" class="space-y-4">
-                <div class="py-16 text-center text-slate-400 text-sm">
-                    尚未載入任何照片，請從上方「步驟 1」選擇照片資料夾，或點擊「載入 4 張模擬白板照片」立即體驗工作區。
+                <div class="flex flex-wrap items-center gap-4">
+                    <!-- 批次套用 Floor -->
+                    <div class="flex items-center gap-1.5 bg-indigo-50/80 border border-indigo-200 px-3 py-1.5 rounded-xl">
+                        <span class="text-xs font-bold text-indigo-900">批次 Floor：</span>
+                        <button type="button" id="batchFloorDecBtn" class="w-7 h-7 rounded-lg bg-white border border-indigo-200 hover:bg-indigo-100 font-bold text-indigo-700 flex items-center justify-center">－</button>
+                        <input id="batchFloorInput" type="number" value="12" placeholder="樓層"
+                            class="w-16 text-center py-1 text-sm font-bold rounded-lg border border-indigo-300 bg-white focus:outline-none">
+                        <button type="button" id="batchFloorIncBtn" class="w-7 h-7 rounded-lg bg-white border border-indigo-200 hover:bg-indigo-100 font-bold text-indigo-700 flex items-center justify-center">＋</button>
+                        <button type="button" id="applyBatchFloorBtn" class="ml-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm">
+                            套用 Floor 到全部
+                        </button>
+                    </div>
+
+                    <!-- 批次套用 Tower -->
+                    <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
+                        <span class="text-xs font-bold text-slate-700">批次 Tower：</span>
+                        <button type="button" id="batchTowerDecBtn" class="w-7 h-7 rounded-lg bg-white border border-slate-300 hover:bg-slate-200 font-bold text-slate-700 flex items-center justify-center">－</button>
+                        <input id="batchTowerInput" type="number" value="1" placeholder="座數"
+                            class="w-14 text-center py-1 text-sm font-bold rounded-lg border border-slate-300 bg-white focus:outline-none">
+                        <button type="button" id="batchTowerIncBtn" class="w-7 h-7 rounded-lg bg-white border border-slate-300 hover:bg-slate-200 font-bold text-slate-700 flex items-center justify-center">＋</button>
+                        <button type="button" id="applyBatchTowerBtn" class="ml-1 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm">
+                            套用 Tower 到全部
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
-    </div>
+
+        <!-- 照片清單主要工作區 -->
+        <section id="workspaceSection" class="space-y-4">
+            <div id="emptyStateBox" class="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center space-y-3">
+                <div class="text-4xl">📷</div>
+                <h3 class="text-base font-bold text-slate-700">尚未載入任何工程照片</h3>
+                <p class="text-xs text-slate-500 max-w-md mx-auto">
+                    請點擊左上角「選擇整個照片資料夾」上傳照片，或點擊右上角「✨ 載入 4 張測試工程照片」立即體驗白板局部放大與分 Tower 匯出功能。
+                </p>
+            </div>
+
+            <div id="photoListContainer" class="space-y-4"></div>
+        </section>
+
+    </main>
 
     <script>
         // ==========================================
-        // 全域 DOM 元素參考 (確保在函式調用前定義)
+        // 全域狀態管理
         // ==========================================
+        let photoItems = [];
+        let selectedGlobalTag = '內喉';
+        let nextPhotoUid = 1;
+
+        // DOM 元素參照
         const folderInput = document.getElementById('folderInput');
         const filesInput = document.getElementById('filesInput');
-        const fileCountInfo = document.getElementById('fileCountInfo');
         const loadDemoBtn = document.getElementById('loadDemoBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const loadedCountBadge = document.getElementById('loadedCountBadge');
+
         const defaultBaseNameInput = document.getElementById('defaultBaseNameInput');
-        const applyDefaultNameAllBtn = document.getElementById('applyDefaultNameAllBtn');
-        const nameFormatInput = document.getElementById('nameFormat');
-        const timeFormatSelect = document.getElementById('timeFormat');
-        const formatPreview = document.getElementById('formatPreview');
-        const batchTowerInput = document.getElementById('batchTowerInput');
-        const batchTowerBtn = document.getElementById('batchTowerBtn');
-        const clearListBtn = document.getElementById('clearListBtn');
-        const photoWorkspace = document.getElementById('photoWorkspace');
+        const globalTagButtons = document.querySelectorAll('.tag-btn');
+        const zipNamePreview = document.getElementById('zipNamePreview');
+
+        const splitTowerModeSelect = document.getElementById('splitTowerModeSelect');
         const exportSummaryText = document.getElementById('exportSummaryText');
         const downloadWordBtn = document.getElementById('downloadWordBtn');
         const downloadZipBtn = document.getElementById('downloadZipBtn');
 
-        let photoItems = [];
-        let currentDefaultTag = '內喉';
-        let currentExportTagFilter = 'ALL';
+        // 批次套用 Floor / Tower
+        const batchFloorInput = document.getElementById('batchFloorInput');
+        const batchFloorDecBtn = document.getElementById('batchFloorDecBtn');
+        const batchFloorIncBtn = document.getElementById('batchFloorIncBtn');
+        const applyBatchFloorBtn = document.getElementById('applyBatchFloorBtn');
+
+        const batchTowerInput = document.getElementById('batchTowerInput');
+        const batchTowerDecBtn = document.getElementById('batchTowerDecBtn');
+        const batchTowerIncBtn = document.getElementById('batchTowerIncBtn');
+        const applyBatchTowerBtn = document.getElementById('applyBatchTowerBtn');
+
+        const emptyStateBox = document.getElementById('emptyStateBox');
+        const photoListContainer = document.getElementById('photoListContainer');
 
         // ==========================================
-        // 1. 時間與檔名組合邏輯（含 Tower 前綴、Floor 加 F、相同 Flat 自動編號、原檔名解析）
+        // 提示訊息 (Toast)
         // ==========================================
-        function parseMetadataFromFilename(filename) {
+        let toastTimer = null;
+        function showToast(message, icon = '✅') {
+            const banner = document.getElementById('toastBanner');
+            document.getElementById('toastIcon').textContent = icon;
+            document.getElementById('toastText').textContent = message;
+            banner.classList.remove('hidden');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                banner.classList.add('hidden');
+            }, 3200);
+        }
+
+        // ==========================================
+        // 格式化與檔名解析輔助函式
+        // ==========================================
+        function sanitizeSegment(str) {
+            return String(str || '').trim().replace(/[\\/*?:"<>|\s]+/g, '');
+        }
+
+        function formatTowerOutput(val) {
+            const clean = sanitizeSegment(val);
+            if (!clean) return '';
+            // 若使用者已輸入 Tower1 則不重複加前綴
+            if (/^tower/i.test(clean)) {
+                return 'Tower' + clean.replace(/^tower/i, '');
+            }
+            return `Tower${clean}`;
+        }
+
+        function formatFloorOutput(val) {
+            const clean = sanitizeSegment(val).replace(/\/?F$/i, '');
+            if (!clean) return '';
+            return `${clean}F`;
+        }
+
+        function formatFlatOutput(val) {
+            const clean = sanitizeSegment(val).replace(/^flat/i, '');
+            return clean.toUpperCase();
+        }
+
+        /**
+         * 嘗試從原檔案名稱自動解析 Tower, Floor, Flat
+         * 支援例如: "Tower1_12F_A.jpg", "T2-8F-FlatB.png", "工程_Tower3_15F_C-1.jpg"
+         */
+        function parseFilenameForFields(filename) {
             const base = filename.replace(/\.[^.]+$/, '');
-            let tower = '';
-            let floor = '';
+            let tower = '1';
+            let floor = '12';
             let flat = '';
 
-            // 1. 嘗試解析 Tower (例如 Tower1, Tower 2, T1, Blk 3)
-            const towerMatch = base.match(/(?:Tower|Blk|Block)\s*([0-9A-Za-z]+)|(?:^|[-_\s])T(\d+[A-Za-z]?)(?=$|[-_\s])/i);
+            // 1. 解析 Tower (例如 Tower1, Tower 2, T1, Blk1, 第1座)
+            const towerMatch = base.match(/(?:Tower|Blk|Block|T)[\s_-]*(\d+)/i) || base.match(/第?\s*(\d+)\s*座/);
             if (towerMatch) {
-                tower = (towerMatch[1] || towerMatch[2] || '').trim();
+                tower = towerMatch[1];
             }
 
-            // 2. 嘗試解析 Floor (例如 12F, 12/F, G/F, B1F)
-            const floorMatch = base.match(/(?:^|[-_\s])(\d+|G|B\d+|LG|UG|R|M)\s*\/?\s*F(?=$|[-_\s])/i);
+            // 2. 解析 Floor (例如 12F, 12/F, Floor12, 12樓)
+            const floorMatch = base.match(/(?:^|[\s_\-])(\d+)\s*\/?F(?=$|[\s_\-])/i)
+                || base.match(/Floor[\s_-]*(\d+)/i)
+                || base.match(/(\d+)\s*樓/);
             if (floorMatch) {
-                floor = floorMatch[1].toUpperCase();
+                floor = floorMatch[1];
             }
 
-            // 3. 嘗試解析 Flat (例如 Flat A, FlatB, Unit C, 或緊接在樓層後的 _A, _B-1)
-            const flatExplicit = base.match(/(?:Flat|Unit|Room|Rm)\s*([A-Za-z0-9]+)/i);
+            // 3. 解析 Flat (例如 FlatA, Flat_B, UnitC, 或在 12F_A / 12F-B 後方的單一字母)
+            const flatExplicit = base.match(/(?:Flat|Unit|Room)[\s_-]*([A-Z])/i);
             if (flatExplicit) {
                 flat = flatExplicit[1].toUpperCase();
-            } else if (floorMatch) {
-                const afterFloor = base.slice(floorMatch.index + floorMatch[0].length);
-                const afterMatch = afterFloor.match(/^[-_\s]+([A-Za-z]{1,2})(?:[-_]\d+)?(?=$|[-_\s])/);
-                if (afterMatch) {
-                    flat = afterMatch[1].toUpperCase();
+            } else {
+                const afterFloor = base.match(/\d+\s*\/?F[\s_-]+([A-Z])(?=$|[\s_\-\d])/i);
+                if (afterFloor) {
+                    flat = afterFloor[1].toUpperCase();
+                } else {
+                    const tailLetter = base.match(/[\s_-]([A-Z])(?:[\s_-]\d+)?$/i);
+                    if (tailLetter) {
+                        flat = tailLetter[1].toUpperCase();
+                    }
                 }
             }
 
             return { tower, floor, flat };
         }
 
-        function formatTime(dateObj, fmt) {
-            const y = dateObj.getFullYear();
-            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const d = String(dateObj.getDate()).padStart(2, '0');
-            const hh = String(dateObj.getHours()).padStart(2, '0');
-            const mm = String(dateObj.getMinutes()).padStart(2, '0');
-            if (fmt === 'YYYY-MM-DD') return `${y}-${m}-${d}`;
-            if (fmt === 'YYYYMMDD_HHmm') return `${y}${m}${d}_${hh}${mm}`;
-            return `${y}${m}${d}`;
-        }
-
-        function sanitizeSegment(str) {
-            return (str || '')
-                .replace(/(\d+|G|B\d*|R|M|UG|LG)\s*\/\s*F\b/gi, '$1F')
-                .replace(/[\\/*?:"<>|\r\n\t]+/g, '_')
-                .trim();
-        }
-
-        // 自動在 Tower 輸出的字前加上 "Tower"（例如輸入 "1" 或 "T1" -> "Tower1"）
-        function formatTowerOutput(rawTower) {
-            const cleaned = sanitizeSegment(rawTower);
-            if (!cleaned) return '';
-            if (/^tower/i.test(cleaned)) {
-                return cleaned.replace(/^tower\s*/i, 'Tower');
-            }
-            if (/^t(\d+[a-z]*)$/i.test(cleaned)) {
-                return cleaned.replace(/^t/i, 'Tower');
-            }
-            return `Tower${cleaned}`;
-        }
-
-        // 自動在 Floor 輸出的字後面加上 "F"（例如輸入 "12" 或 "12/F" -> "12F"）
-        function formatFloorOutput(rawFloor) {
-            let cleaned = (rawFloor || '').trim();
-            if (!cleaned) return '';
-            cleaned = cleaned.replace(/\s*\/\s*F$/i, 'F').replace(/[\\/*?:"<>|\r\n\t]+/g, '').trim();
-            if (!/F$/i.test(cleaned)) {
-                cleaned = `${cleaned}F`;
-            } else {
-                cleaned = cleaned.replace(/f$/, 'F');
-            }
-            return cleaned;
-        }
-
-        // 計算當 Flat 欄位名稱相同時，自動加上編號 (1, 2, 3...)
+        /**
+         * 當相同 (Tower, Floor, Flat) 出現多張照片時，自動計算「同Flat編號」 (1, 2, 3...)
+         * 若該 Flat 只有 1 張照片，則同Flat編號為 '1'（或可顯示 1，並在檔名上智慧處理）
+         */
         function recalculateDuplicateFlatNumbers() {
-            // 先統計每個 (Tower + Floor + Flat) 出現的總次數
-            const keyCounts = new Map();
+            const counts = new Map();
             photoItems.forEach(item => {
-                const flatClean = sanitizeSegment(item.flat).toUpperCase();
-                if (!flatClean) return;
-                const towerKey = formatTowerOutput(item.tower).toUpperCase();
-                const floorKey = formatFloorOutput(item.floor).toUpperCase();
-                const groupKey = `${towerKey}|${floorKey}|${flatClean}`;
-                keyCounts.set(groupKey, (keyCounts.get(groupKey) || 0) + 1);
+                const key = `${formatTowerOutput(item.tower)}_${formatFloorOutput(item.floor)}_${formatFlatOutput(item.flat)}`;
+                counts.set(key, (counts.get(key) || 0) + 1);
             });
 
-            const currentSeq = new Map();
+            const seen = new Map();
             photoItems.forEach(item => {
-                const flatClean = sanitizeSegment(item.flat).toUpperCase();
+                const flatClean = formatFlatOutput(item.flat);
                 if (!flatClean) {
-                    if (!item.flatNoManual) item.flatNo = '';
+                    item.flatSeq = '';
+                    item.totalSameFlat = 0;
                     return;
                 }
-                const towerKey = formatTowerOutput(item.tower).toUpperCase();
-                const floorKey = formatFloorOutput(item.floor).toUpperCase();
-                const groupKey = `${towerKey}|${floorKey}|${flatClean}`;
-                const total = keyCounts.get(groupKey) || 0;
+                const key = `${formatTowerOutput(item.tower)}_${formatFloorOutput(item.floor)}_${flatClean}`;
+                const total = counts.get(key) || 1;
+                const currentIdx = (seen.get(key) || 0) + 1;
+                seen.set(key, currentIdx);
 
-                if (total > 1) {
-                    const nextNum = (currentSeq.get(groupKey) || 0) + 1;
-                    currentSeq.set(groupKey, nextNum);
-                    if (!item.flatNoManual) {
-                        item.flatNo = String(nextNum);
-                    }
-                } else {
-                    if (!item.flatNoManual) {
-                        item.flatNo = '';
-                    }
+                item.totalSameFlat = total;
+                // 若使用者未手動鎖定自訂編號，則自動填入流水編號 1, 2, 3...
+                if (!item.manualSeqOverride) {
+                    item.flatSeq = String(currentIdx);
                 }
             });
         }
 
-        // 排序輔助：將 Tower / Floor / Flat / 同Flat編號 轉為可比較的數值與字串
-        function parseFloorSortValue(rawFloor) {
-            const s = (rawFloor || '').toString().trim().toUpperCase().replace(/\/?F$/i, '');
-            if (!s) return 999999;
-            if (s === 'G' || s === 'GF') return 0;
-            if (/^B(\d+)$/.test(s)) return -parseInt(s.match(/^B(\d+)$/)[1], 10);
-            if (s === 'LG') return -0.5;
-            if (s === 'UG' || s === 'M') return 0.5;
-            if (s === 'R' || s === 'RF') return 9999;
-            const num = parseFloat(s);
-            return isNaN(num) ? 99999 : num;
+        /**
+         * 產生單張照片在 Word 中顯示的標題（僅顯示 Tower, Floor, Flat，不含數量/編號與預設名稱/Tag）
+         */
+        function getWordPhotoLabel(item) {
+            const t = formatTowerOutput(item.tower);
+            const f = formatFloorOutput(item.floor);
+            const fl = formatFlatOutput(item.flat);
+            return [t, f, fl].filter(Boolean).join(' ');
         }
 
-        function parseTowerSortValue(rawTower) {
-            const s = (rawTower || '').toString().trim().replace(/^(Tower|T|Blk|Block)\s*/i, '');
-            const num = parseFloat(s);
-            return isNaN(num) ? 99999 : num;
-        }
+        /**
+         * 產生單張照片在 ZIP 改名時的完整檔名（包含預設名稱、Tag、Tower、Floor、Flat 與同Flat編號）
+         */
+        function getRenamedPhotoFilename(item) {
+            const baseName = sanitizeSegment(defaultBaseNameInput.value) || '工程相片';
+            const tag = sanitizeSegment(selectedGlobalTag);
+            const t = formatTowerOutput(item.tower);
+            const f = formatFloorOutput(item.floor);
+            const fl = formatFlatOutput(item.flat);
 
-        function comparePhotoItems(a, b) {
-            // 1. Tower 由小到大
-            const tNumA = parseTowerSortValue(a.tower);
-            const tNumB = parseTowerSortValue(b.tower);
-            if (tNumA !== tNumB) return tNumA - tNumB;
-            const tStrCmp = formatTowerOutput(a.tower).localeCompare(formatTowerOutput(b.tower), 'en', { numeric: true });
-            if (tStrCmp !== 0) return tStrCmp;
-
-            // 2. Floor 由小到大
-            const fNumA = parseFloorSortValue(a.floor);
-            const fNumB = parseFloorSortValue(b.floor);
-            if (fNumA !== fNumB) return fNumA - fNumB;
-            const fStrCmp = formatFloorOutput(a.floor).localeCompare(formatFloorOutput(b.floor), 'en', { numeric: true });
-            if (fStrCmp !== 0) return fStrCmp;
-
-            // 3. Flat 單位從 A 到 Z
-            const flatA = (a.flat || '').trim().toUpperCase();
-            const flatB = (b.flat || '').trim().toUpperCase();
-            if (flatA !== flatB) {
-                if (!flatA) return 1;
-                if (!flatB) return -1;
-                return flatA.localeCompare(flatB, 'en', { numeric: true });
+            let flatWithSeq = fl;
+            if (fl && item.flatSeq && (item.totalSameFlat > 1 || item.manualSeqOverride)) {
+                flatWithSeq = `${fl}-${item.flatSeq}`;
+            } else if (fl && item.flatSeq) {
+                flatWithSeq = `${fl}-${item.flatSeq}`;
             }
 
-            // 4. 相同單位依編號 (flatNo) 由小到大排序
-            const noA = parseInt(a.flatNo, 10) || 0;
-            const noB = parseInt(b.flatNo, 10) || 0;
-            if (noA !== noB) return noA - noB;
-
-            return a.id - b.id;
+            const parts = [baseName, tag, t, f, flatWithSeq].filter(Boolean);
+            return parts.join('_');
         }
 
-        function buildItemFileName(item) {
-            const fmt = nameFormatInput.value.trim() || '{time}-{default}-{tag}-{location}';
-            const globalDefName = defaultBaseNameInput.value.trim() || '工程相片';
-
-            const tStr = formatTowerOutput(item.tower);
-            const fStr = formatFloorOutput(item.floor);
-            const flBase = sanitizeSegment(item.flat);
-            const flNo = sanitizeSegment(item.flatNo);
-            const flCombined = flBase ? (flNo ? `${flBase}-${flNo}` : flBase) : flNo;
-
-            const locCombined = [tStr, fStr, flCombined].filter(Boolean).join('_');
-
-            let result = fmt
-                .replace(/\{time\}/g, item.timeStr || '')
-                .replace(/\{default\}/g, sanitizeSegment(globalDefName))
-                .replace(/\{tag\}/g, sanitizeSegment(currentDefaultTag))
-                .replace(/\{tower\}/g, tStr)
-                .replace(/\{floor\}/g, fStr)
-                .replace(/\{flat\}/g, flBase)
-                .replace(/\{flat_no\}/g, flNo)
-                .replace(/\{location\}/g, locCombined)
-                .replace(/\{index(?::\d+d)?\}/g, '');
-
-            // 清理因某欄位空白而產生的連續橫線或底線 (例如 "--" -> "-")
-            result = result
-                .replace(/[-_]{2,}/g, '-')
-                .replace(/^[-_]+|[-_]+$/g, '');
-
-            return result || `${ sanitizeSegment(globalDefName) }`;
+        function updateGlobalPreview() {
+            const baseName = sanitizeSegment(defaultBaseNameInput.value) || '工程相片';
+            const tag = sanitizeSegment(selectedGlobalTag);
+            zipNamePreview.textContent = `${baseName}_${tag}_Tower1_12F_A-1.jpg`;
         }
 
-        // 產生 Word 檔專用的名稱（每張照片只需要顯示 tower, floor 跟 flat）
-        function buildWordItemTitle(item) {
-            const tStr = formatTowerOutput(item.tower);
-            const fStr = formatFloorOutput(item.floor);
-            const flBase = sanitizeSegment(item.flat);
-            const flNo = sanitizeSegment(item.flatNo);
-            const flCombined = flBase ? (flNo ? `${flBase}-${flNo}` : flBase) : flNo;
+        // ==========================================
+        // 白板區域自動偵測 (尋找高亮度矩形區域)
+        // ==========================================
+        function detectWhiteboardRegion(imgElement) {
+            try {
+                const sampleW = 120;
+                const sampleH = Math.max(60, Math.round((imgElement.height / imgElement.width) * sampleW));
+                const canvas = document.createElement('canvas');
+                canvas.width = sampleW;
+                canvas.height = sampleH;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgElement, 0, 0, sampleW, sampleH);
+                const data = ctx.getImageData(0, 0, sampleW, sampleH).data;
 
-            const parts = [tStr, fStr, flCombined].filter(Boolean);
-            return parts.join(' - ') || '未標示位置';
+                let sumX = 0, sumY = 0, weightSum = 0;
+                for (let y = Math.floor(sampleH * 0.1); y < Math.floor(sampleH * 0.9); y++) {
+                    for (let x = Math.floor(sampleW * 0.1); x < Math.floor(sampleW * 0.9); x++) {
+                        const idx = (y * sampleW + x) * 4;
+                        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+                        const brightness = (r + g + b) / 3;
+                        const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+                        // 白板特徵：高亮度且低飽和度
+                        if (brightness > 195 && saturation < 40) {
+                            const w = (brightness - 190);
+                            sumX += x * w;
+                            sumY += y * w;
+                            weightSum += w;
+                        }
+                    }
+                }
+
+                if (weightSum > 800) {
+                    return {
+                        centerX: Math.min(0.82, Math.max(0.18, (sumX / weightSum) / sampleW)),
+                        centerY: Math.min(0.82, Math.max(0.18, (sumY / weightSum) / sampleH)),
+                        zoom: 2.4
+                    };
+                }
+            } catch (e) {
+                console.warn('白板偵測略過:', e);
+            }
+            return { centerX: 0.5, centerY: 0.5, zoom: 2.2 };
         }
 
-        function refreshAllFileNames() {
+        /**
+         * 將圖片依照目前的旋轉角度 (0, 90, 180, 270) 繪製到離屏 Canvas 並回傳
+         */
+        function getRotatedSourceCanvas(item) {
+            if (item._rotatedCanvas && item._rotatedCanvasAngle === item.rotation) {
+                return item._rotatedCanvas;
+            }
+            const img = item.imgElement;
+            const angle = ((item.rotation % 360) + 360) % 360;
+            const swap = angle === 90 || angle === 270;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = swap ? img.height : img.width;
+            canvas.height = swap ? img.width : img.height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((angle * Math.PI) / 180);
+            ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+            item._rotatedCanvas = canvas;
+            item._rotatedCanvasAngle = item.rotation;
+            return canvas;
+        }
+
+        // ==========================================
+        // 繪製單張卡片的「原圖縮圖」與「白板局部放大 Canvas」
+        // ==========================================
+        function renderCardCanvases(item) {
+            const srcCanvas = getRotatedSourceCanvas(item);
+            const srcW = srcCanvas.width;
+            const srcH = srcCanvas.height;
+
+            // 計算放大區擷取範圍
+            const zoom = Math.min(8.0, Math.max(1.0, item.zoom || 2.2));
+            const cropW = srcW / zoom;
+            const cropH = srcH / zoom;
+
+            // 限制中心點不超出邊界
+            const halfW = (cropW / srcW) / 2;
+            const halfH = (cropH / srcH) / 2;
+            item.centerX = Math.min(1 - halfW, Math.max(halfW, item.centerX));
+            item.centerY = Math.min(1 - halfH, Math.max(halfH, item.centerY));
+
+            const sx = Math.max(0, (item.centerX * srcW) - cropW / 2);
+            const sy = Math.max(0, (item.centerY * srcH) - cropH / 2);
+
+            // 1. 繪製左側原圖與紅框
+            if (item.overviewCanvas) {
+                const ovCanvas = item.overviewCanvas;
+                const ovW = 240;
+                const ovH = Math.max(150, Math.round((srcH / srcW) * ovW));
+                if (ovCanvas.width !== ovW || ovCanvas.height !== ovH) {
+                    ovCanvas.width = ovW;
+                    ovCanvas.height = ovH;
+                }
+                const octx = ovCanvas.getContext('2d');
+                octx.clearRect(0, 0, ovW, ovH);
+                octx.drawImage(srcCanvas, 0, 0, ovW, ovH);
+
+                // 畫出目前放大視野框
+                const rx = (sx / srcW) * ovW;
+                const ry = (sy / srcH) * ovH;
+                const rw = (cropW / srcW) * ovW;
+                const rh = (cropH / srcH) * ovH;
+
+                octx.strokeStyle = '#ef4444';
+                octx.lineWidth = 2.5;
+                octx.strokeRect(rx, ry, rw, rh);
+                octx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+                octx.fillRect(rx, ry, rw, rh);
+            }
+
+            // 2. 繪製中間白板放大檢視區
+            if (item.zoomCanvas) {
+                const zCanvas = item.zoomCanvas;
+                const zW = 480;
+                const zH = 300;
+                if (zCanvas.width !== zW || zCanvas.height !== zH) {
+                    zCanvas.width = zW;
+                    zCanvas.height = zH;
+                }
+                const zctx = zCanvas.getContext('2d');
+                zctx.clearRect(0, 0, zW, zH);
+                zctx.imageSmoothingEnabled = true;
+                zctx.imageSmoothingQuality = 'high';
+                zctx.drawImage(srcCanvas, sx, sy, cropW, cropH, 0, 0, zW, zH);
+            }
+
+            if (item.zoomBadgeEl) {
+                item.zoomBadgeEl.textContent = `${zoom.toFixed(1)}x`;
+            }
+        }
+
+        // ==========================================
+        // 更新所有卡片的標籤與匯出小總結
+        // ==========================================
+        function refreshAllCardsAndSummary() {
             recalculateDuplicateFlatNumbers();
 
-            const demoItem = {
-                timeStr: formatTime(new Date(), timeFormatSelect.value),
-                tower: '1',
-                floor: '12',
-                flat: 'A',
-                flatNo: ''
-            };
-            formatPreview.textContent = `${buildItemFileName(demoItem)}.jpg`;
-
-            photoItems.forEach((item) => {
-                const flatNoInput = document.getElementById(`flat-no-${item.id}`);
-                if (flatNoInput && document.activeElement !== flatNoInput) {
-                    flatNoInput.value = item.flatNo || '';
+            photoItems.forEach(item => {
+                if (item.flatSeqInput && document.activeElement !== item.flatSeqInput) {
+                    item.flatSeqInput.value = item.flatSeq || '';
                 }
-
-                if (!item.manualOverride) {
-                    item.finalBaseName = buildItemFileName(item);
+                if (item.wordPreviewEl) {
+                    item.wordPreviewEl.textContent = getWordPhotoLabel(item) || '(尚未填寫完成)';
                 }
-                const previewInput = document.getElementById(`final-name-${item.id}`);
-                if (previewInput && document.activeElement !== previewInput) {
-                    previewInput.value = item.finalBaseName;
+                if (item.zipPreviewEl) {
+                    item.zipPreviewEl.textContent = `${getRenamedPhotoFilename(item)}${item.ext}`;
                 }
             });
+
+            loadedCountBadge.textContent = `${photoItems.length} 張`;
+            emptyStateBox.classList.toggle('hidden', photoItems.length > 0);
             updateExportSummary();
         }
 
-        nameFormatInput.addEventListener('input', refreshAllFileNames);
-        timeFormatSelect.addEventListener('change', refreshAllFileNames);
-        defaultBaseNameInput.addEventListener('input', refreshAllFileNames);
+        // ==========================================
+        // 排序與分組邏輯
+        // (Floor 由小到大 ➔ 單位 Flat 由 A 到 Z ➔ 同單位編號由小到大)
+        // ==========================================
+        function parseNumberSmart(val, fallback = 999999) {
+            const m = String(val || '').match(/-?\d+(\.\d+)?/);
+            return m ? parseFloat(m[0]) : fallback;
+        }
 
-        // 套用預設名稱到全部照片
-        applyDefaultNameAllBtn.addEventListener('click', () => {
-            photoItems.forEach(item => {
-                item.manualOverride = false;
+        function sortPhotoItemsList(list) {
+            return [...list].sort((a, b) => {
+                // 1. Tower 由小到大
+                const tA = parseNumberSmart(a.tower);
+                const tB = parseNumberSmart(b.tower);
+                if (tA !== tB) return tA - tB;
+                const tStrCmp = formatTowerOutput(a.tower).localeCompare(formatTowerOutput(b.tower), 'en', { numeric: true });
+                if (tStrCmp !== 0) return tStrCmp;
+
+                // 2. Floor 由小到大
+                const fA = parseNumberSmart(a.floor);
+                const fB = parseNumberSmart(b.floor);
+                if (fA !== fB) return fA - fB;
+
+                // 3. 單位 Flat 由 A 到 Z
+                const flA = formatFlatOutput(a.flat);
+                const flB = formatFlatOutput(b.flat);
+                const flatCmp = flA.localeCompare(flB, 'en', { sensitivity: 'base' });
+                if (flatCmp !== 0) return flatCmp;
+
+                // 4. 同單位編號由小到大
+                const seqA = parseNumberSmart(a.flatSeq, 1);
+                const seqB = parseNumberSmart(b.flatSeq, 1);
+                return seqA - seqB;
             });
-            refreshAllFileNames();
-        });
+        }
 
-        // 切換預設 Tag 按鈕
-        document.querySelectorAll('.default-tag-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                currentDefaultTag = btn.dataset.defaultTag;
-                document.querySelectorAll('.default-tag-btn').forEach(b => {
-                    const active = b.dataset.defaultTag === currentDefaultTag;
-                    b.className = `default-tag-btn flex-1 py-1.5 px-2 text-xs font-bold rounded-lg border transition ${
-                        active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                    }`;
+        function getGroupedItemsForExport() {
+            recalculateDuplicateFlatNumbers();
+            const sorted = sortPhotoItemsList(photoItems);
+            const splitMode = splitTowerModeSelect.value; // 'split' or 'single'
+
+            const groups = new Map();
+            if (splitMode === 'split') {
+                sorted.forEach(item => {
+                    const towerLabel = formatTowerOutput(item.tower) || '未填Tower';
+                    if (!groups.has(towerLabel)) {
+                        groups.set(towerLabel, { towerLabel, items: [] });
+                    }
+                    groups.get(towerLabel).items.push(item);
                 });
-                photoItems.forEach(item => {
-                    item.tag = currentDefaultTag;
-                    item.manualOverride = false;
-                });
-                refreshAllFileNames();
-            });
-        });
-
-        document.querySelectorAll('.fmt-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                nameFormatInput.value = btn.dataset.fmt;
-                refreshAllFileNames();
-            });
-        });
-
-        // 批量套用 Tower
-        batchTowerBtn.addEventListener('click', () => {
-            const val = batchTowerInput.value.trim();
-            if (!val) return;
-            photoItems.forEach(item => {
-                item.tower = val;
-                item.manualOverride = false;
-            });
-            renderWorkspace();
-            refreshAllFileNames();
-        });
-
-        // ==========================================
-        // 2. 自動尋找白板位置、旋轉圖片與局部放大 (支援滾輪縮放與左鍵拖曳平移)
-        // ==========================================
-        function rotateDataUrl90(sourceDataUrl, direction = 'cw') {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.height;
-                    canvas.height = img.width;
-                    const ctx = canvas.getContext('2d');
-                    ctx.translate(canvas.width / 2, canvas.height / 2);
-                    const angle = direction === 'cw' ? Math.PI / 2 : -Math.PI / 2;
-                    ctx.rotate(angle);
-                    ctx.drawImage(img, -img.width / 2, -img.height / 2);
-                    resolve({
-                        dataUrl: canvas.toDataURL('image/jpeg', 0.9),
-                        width: canvas.width,
-                        height: canvas.height
-                    });
-                };
-                img.src = sourceDataUrl;
-            });
-        }
-
-        function cropWhiteboardAtBox(img, box, zoomMultiplier = 1.0) {
-            const w = img.width;
-            const h = img.height;
-            // 依據 zoomMultiplier 縮放裁切範圍
-            const centerX = box.x + box.w / 2;
-            const centerY = box.y + box.h / 2;
-            const targetW = Math.max(100, Math.min(w, Math.round(box.w / zoomMultiplier)));
-            const targetH = Math.max(75, Math.min(h, Math.round(box.h / zoomMultiplier)));
-
-            const cropX = Math.max(0, Math.min(w - targetW, Math.round(centerX - targetW / 2)));
-            const cropY = Math.max(0, Math.min(h - targetH, Math.round(centerY - targetH / 2)));
-
-            const outW = 720;
-            const outH = Math.max(360, Math.round((targetH / targetW) * outW));
-
-            const zoomCanvas = document.createElement('canvas');
-            zoomCanvas.width = outW;
-            zoomCanvas.height = outH;
-            const zoomCtx = zoomCanvas.getContext('2d');
-            zoomCtx.imageSmoothingEnabled = true;
-            zoomCtx.imageSmoothingQuality = 'high';
-            zoomCtx.filter = 'contrast(1.22) brightness(1.03)';
-            zoomCtx.drawImage(img, cropX, cropY, targetW, targetH, 0, 0, outW, outH);
-
-            return {
-                zoomedDataUrl: zoomCanvas.toDataURL('image/jpeg', 0.92),
-                cropRect: { x: cropX, y: cropY, w: targetW, h: targetH }
-            };
-        }
-
-        function detectAndZoomWhiteboard(sourceDataUrl, customCenter = null, zoomMultiplier = 1.0) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const w = img.width;
-                    const h = img.height;
-
-                    // 若使用者手動點擊了原圖上的某個位置，直接以該點擊處為中心進行白板局部放大
-                    if (customCenter) {
-                        const baseW = Math.round(w * 0.42);
-                        const baseH = Math.round(h * 0.42);
-                        const box = {
-                            x: Math.round(customCenter.xRatio * w - baseW / 2),
-                            y: Math.round(customCenter.yRatio * h - baseH / 2),
-                            w: baseW,
-                            h: baseH
-                        };
-                        const cropped = cropWhiteboardAtBox(img, box, zoomMultiplier);
-                        resolve({
-                            zoomedDataUrl: cropped.zoomedDataUrl,
-                            cropBox: box,
-                            cropRect: cropped.cropRect
-                        });
-                        return;
-                    }
-
-                    // 自動掃描高亮度低飽和度且內含深色字跡的工程白板區域
-                    const scanW = 320;
-                    const scanH = Math.max(180, Math.round((h / w) * scanW));
-                    const scanCanvas = document.createElement('canvas');
-                    scanCanvas.width = scanW;
-                    scanCanvas.height = scanH;
-                    const scanCtx = scanCanvas.getContext('2d');
-                    scanCtx.drawImage(img, 0, 0, scanW, scanH);
-
-                    const imgData = scanCtx.getImageData(0, 0, scanW, scanH).data;
-                    const gridCols = 32;
-                    const gridRows = 24;
-                    const cellW = scanW / gridCols;
-                    const cellH = scanH / gridRows;
-
-                    const boardMask = Array.from({ length: gridRows }, () => Array(gridCols).fill(false));
-
-                    for (let r = 0; r < gridRows; r++) {
-                        for (let c = 0; c < gridCols; c++) {
-                            let whiteCount = 0;
-                            let darkInkCount = 0;
-                            let totalPixels = 0;
-
-                            const startX = Math.floor(c * cellW);
-                            const endX = Math.floor((c + 1) * cellW);
-                            const startY = Math.floor(r * cellH);
-                            const endY = Math.floor((r + 1) * cellH);
-
-                            for (let y = startY; y < endY; y++) {
-                                for (let x = startX; x < endX; x++) {
-                                    const idx = (y * scanW + x) * 4;
-                                    const R = imgData[idx];
-                                    const G = imgData[idx + 1];
-                                    const B = imgData[idx + 2];
-                                    const maxC = Math.max(R, G, B);
-                                    const minC = Math.min(R, G, B);
-                                    const lum = 0.299 * R + 0.587 * G + 0.114 * B;
-                                    const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
-
-                                    if (lum > 165 && sat < 0.28) whiteCount++;
-                                    if (lum < 110) darkInkCount++;
-                                    totalPixels++;
-                                }
-                            }
-
-                            const whiteRatio = whiteCount / (totalPixels || 1);
-                            boardMask[r][c] = {
-                                isWhite: whiteRatio > 0.42,
-                                hasInk: darkInkCount > 2
-                            };
-                        }
-                    }
-
-                    const visited = Array.from({ length: gridRows }, () => Array(gridCols).fill(false));
-                    let bestBox = null;
-                    let bestScore = 0;
-
-                    for (let r = 0; r < gridRows; r++) {
-                        for (let c = 0; c < gridCols; c++) {
-                            if (boardMask[r][c].isWhite && !visited[r][c]) {
-                                const queue = [[r, c]];
-                                visited[r][c] = true;
-                                let minR = r, maxR = r, minC = c, maxC = c;
-                                let cellCount = 0;
-                                let inkCells = 0;
-
-                                while (queue.length > 0) {
-                                    const [cr, cc] = queue.shift();
-                                    cellCount++;
-                                    if (boardMask[cr][cc].hasInk) inkCells++;
-                                    if (cr < minR) minR = cr;
-                                    if (cr > maxR) maxR = cr;
-                                    if (cc < minC) minC = cc;
-                                    if (cc > maxC) maxC = cc;
-
-                                    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
-                                    for (const [dr, dc] of dirs) {
-                                        const nr = cr + dr;
-                                        const nc = cc + dc;
-                                        if (nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols &&
-                                            boardMask[nr][nc].isWhite && !visited[nr][nc]) {
-                                            visited[nr][nc] = true;
-                                            queue.push([nr, nc]);
-                                        }
-                                    }
-                                }
-
-                                const boxArea = (maxR - minR + 1) * (maxC - minC + 1);
-                                const fillRatio = cellCount / (boxArea || 1);
-                                if (cellCount >= 4 && cellCount <= gridRows * gridCols * 0.75 && fillRatio > 0.45) {
-                                    const score = cellCount * 1.2 + inkCells * 3.5;
-                                    if (score > bestScore) {
-                                        bestScore = score;
-                                        bestBox = { minR, maxR, minC, maxC };
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    let box = { x: Math.round(w * 0.25), y: Math.round(h * 0.25), w: Math.round(w * 0.5), h: Math.round(h * 0.5) };
-                    if (bestBox) {
-                        const padC = 1.5;
-                        const padR = 1.5;
-                        const x1 = Math.max(0, ((bestBox.minC - padC) / gridCols) * w);
-                        const y1 = Math.max(0, ((bestBox.minR - padR) / gridRows) * h);
-                        const x2 = Math.min(w, ((bestBox.maxC + 1 + padC) / gridCols) * w);
-                        const y2 = Math.min(h, ((bestBox.maxR + 1 + padR) / gridRows) * h);
-                        box = {
-                            x: Math.round(x1),
-                            y: Math.round(y1),
-                            w: Math.max(120, Math.round(x2 - x1)),
-                            h: Math.max(90, Math.round(y2 - y1))
-                        };
-                    }
-
-                    const cropped = cropWhiteboardAtBox(img, box, zoomMultiplier);
-                    resolve({
-                        zoomedDataUrl: cropped.zoomedDataUrl,
-                        cropBox: box,
-                        cropRect: cropped.cropRect
-                    });
-                };
-                img.src = sourceDataUrl;
-            });
-        }
-
-        // ==========================================
-        // 3. 讀取照片與自動產生預設名稱
-        // ==========================================
-        async function extractPhotoDate(file) {
-            try {
-                const tags = await ExifReader.load(file);
-                if (tags && tags['DateTimeOriginal'] && tags['DateTimeOriginal'].description) {
-                    const raw = tags['DateTimeOriginal'].description;
-                    const parts = raw.split(/[:\s]/);
-                    if (parts.length >= 3) {
-                        const dt = new Date(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0);
-                        if (!isNaN(dt.getTime())) return dt;
-                    }
-                }
-            } catch (e) {}
-            return new Date(file.lastModified || Date.now());
-        }
-
-        function fileToDataUrl(file, maxWidth = 1400) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        let w = img.width;
-                        let h = img.height;
-                        if (w > maxWidth) {
-                            h = Math.round(h * (maxWidth / w));
-                            w = maxWidth;
-                        }
-                        canvas.width = w;
-                        canvas.height = h;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, w, h);
-                        resolve({
-                            dataUrl: canvas.toDataURL('image/jpeg', 0.88),
-                            width: w,
-                            height: h
-                        });
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function handleSelectedFiles(fileList) {
-            const validFiles = Array.from(fileList).filter(f => /\.(jpe?g|png|webp|bmp)$/i.test(f.name));
-            if (validFiles.length === 0) return;
-
-            validFiles.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
-            fileCountInfo.innerHTML = `<span class="text-blue-600 font-semibold">⏳ 正在載入 ${validFiles.length} 張照片並自動定位放大白板區域...</span>`;
-
-            const defName = defaultBaseNameInput.value.trim() || '工程相片';
-            photoItems = [];
-
-            for (let i = 0; i < validFiles.length; i++) {
-                const f = validFiles[i];
-                const dt = await extractPhotoDate(f);
-                const timeStr = formatTime(dt, timeFormatSelect.value);
-                const { dataUrl, width, height } = await fileToDataUrl(f, 1400);
-                const extMatch = f.name.match(/(\.[^.]+)$/);
-                const ext = extMatch ? extMatch[1].toLowerCase() : '.jpg';
-
-                const zoomRes = await detectAndZoomWhiteboard(dataUrl);
-                const parsedMeta = parseMetadataFromFilename(f.name);
-
-                const newItem = {
-                    id: Date.now() + i,
-                    origName: f.name,
-                    ext,
-                    dataUrl,
-                    boardCropUrl: zoomRes.zoomedDataUrl,
-                    cropBox: zoomRes.cropBox,
-                    cropRect: zoomRes.cropRect,
-                    customCenter: {
-                        xRatio: (zoomRes.cropRect.x + zoomRes.cropRect.w / 2) / width,
-                        yRatio: (zoomRes.cropRect.y + zoomRes.cropRect.h / 2) / height
-                    },
-                    zoomMultiplier: 1.0,
-                    width,
-                    height,
-                    timeStr,
-                    defaultName: defName,
-                    tag: currentDefaultTag,
-                    tower: parsedMeta.tower,
-                    floor: parsedMeta.floor,
-                    flat: parsedMeta.flat,
-                    flatNo: '',
-                    flatNoManual: false,
-                    finalBaseName: '',
-                    manualOverride: false
-                };
-                newItem.finalBaseName = buildItemFileName(newItem);
-                photoItems.push(newItem);
+            } else {
+                groups.set('ALL', { towerLabel: '全部Tower合併', items: sorted });
             }
 
-            fileCountInfo.innerHTML = `<span class="font-semibold text-emerald-700">✓ 已載入 ${photoItems.length} 張照片（若原檔名含 Tower/Floor/Flat 已自動填入）！可在放大區使用滾輪縮放、按住左鍵拖曳移動。</span>`;
-            downloadWordBtn.disabled = false;
-            downloadZipBtn.disabled = false;
-            refreshAllFileNames();
-            renderWorkspace();
-            updateExportSummary();
+            return { sorted, splitMode, groups };
         }
 
-        folderInput.addEventListener('change', (e) => handleSelectedFiles(e.target.files));
-        filesInput.addEventListener('change', (e) => handleSelectedFiles(e.target.files));
-
-        // 載入 4 張模擬白板照片 (展示相同 Flat 自動編號與不同 Tower)
-        loadDemoBtn.addEventListener('click', async () => {
-            const demos = [
-                { date: '20261105', tower: '1', floor: '15', flat: 'B', bx: 390, by: 170 },
-                { date: '20261105', tower: '2', floor: '25', flat: 'A', bx: 240, by: 260 },
-                { date: '20261105', tower: '1', floor: '12', flat: 'A', bx: 420, by: 300 },
-                { date: '20261105', tower: '1', floor: '12', flat: 'A', bx: 110, by: 270 }
-            ];
-
-            const defName = defaultBaseNameInput.value.trim() || '工程相片';
-            photoItems = [];
-
-            for (let i = 0; i < demos.length; i++) {
-                const d = demos[i];
-                const canvas = document.createElement('canvas');
-                canvas.width = 800;
-                canvas.height = 600;
-                const ctx = canvas.getContext('2d');
-
-                // 工地水泥牆與喉管示意背景
-                ctx.fillStyle = '#64748b';
-                ctx.fillRect(0, 0, 800, 600);
-                ctx.fillStyle = '#475569';
-                for (let x = 0; x < 800; x += 90) ctx.fillRect(x, 0, 12, 600);
-                for (let y = 0; y < 600; y += 90) ctx.fillRect(0, y, 800, 8);
-
-                // 白板區域
-                const bw = 310;
-                const bh = 210;
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(d.bx, d.by, bw, bh);
-                ctx.strokeStyle = '#0f172a';
-                ctx.lineWidth = 4;
-                ctx.strokeRect(d.bx + 6, d.by + 6, bw - 12, bh - 12);
-
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                [55, 105, 155].forEach(offsetY => {
-                    ctx.moveTo(d.bx + 6, d.by + offsetY);
-                    ctx.lineTo(d.bx + bw - 6, d.by + offsetY);
-                });
-                ctx.moveTo(d.bx + 105, d.by + 6);
-                ctx.lineTo(d.bx + 105, d.by + bh - 6);
-                ctx.stroke();
-
-                ctx.fillStyle = '#0f172a';
-                ctx.font = 'bold 18px "Inter", "Microsoft JhengHei", sans-serif';
-                ctx.fillText('項目 Item', d.bx + 14, d.by + 38);
-                ctx.fillStyle = '#b91c1c';
-                ctx.fillText(`${currentDefaultTag}試水查驗`, d.bx + 115, d.by + 38);
-
-                ctx.fillStyle = '#0f172a';
-                ctx.fillText('座數/樓層', d.bx + 14, d.by + 86);
-                ctx.fillStyle = '#1d4ed8';
-                ctx.fillText(`Tower ${d.tower}   ${d.floor}/F`, d.bx + 115, d.by + 86);
-
-                ctx.fillStyle = '#0f172a';
-                ctx.fillText('單位 Flat', d.bx + 14, d.by + 136);
-                ctx.fillStyle = '#1d4ed8';
-                ctx.fillText(`Flat ${d.flat}`, d.bx + 115, d.by + 136);
-
-                ctx.fillStyle = '#0f172a';
-                ctx.fillText('日期 Date', d.bx + 14, d.by + 186);
-                ctx.fillText('2026-11-05', d.bx + 115, d.by + 186);
-
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-                const zoomRes = await detectAndZoomWhiteboard(dataUrl);
-
-                const newItem = {
-                    id: Date.now() + i,
-                    origName: `Tower${d.tower}_${d.floor}F_${d.flat}_00${i + 1}.jpg`,
-                    ext: '.jpg',
-                    dataUrl,
-                    boardCropUrl: zoomRes.zoomedDataUrl,
-                    cropBox: zoomRes.cropBox,
-                    cropRect: zoomRes.cropRect,
-                    customCenter: {
-                        xRatio: (zoomRes.cropRect.x + zoomRes.cropRect.w / 2) / 800,
-                        yRatio: (zoomRes.cropRect.y + zoomRes.cropRect.h / 2) / 600
-                    },
-                    zoomMultiplier: 1.0,
-                    width: 800,
-                    height: 600,
-                    timeStr: d.date,
-                    defaultName: defName,
-                    tag: currentDefaultTag,
-                    tower: d.tower,
-                    floor: d.floor,
-                    flat: d.flat,
-                    flatNo: '',
-                    flatNoManual: false,
-                    finalBaseName: '',
-                    manualOverride: false
-                };
-                photoItems.push(newItem);
-            }
-
-            refreshAllFileNames();
-            fileCountInfo.innerHTML = `<span class="font-semibold text-emerald-700">✓ 已載入 4 張模擬白板照片！匯出時將自動依 Floor (12F ➔ 15F) 與 Flat (A-1 ➔ A-2 ➔ B) 排序。</span>`;
-            downloadWordBtn.disabled = false;
-            downloadZipBtn.disabled = false;
-            renderWorkspace();
-            updateExportSummary();
-        });
-
-        clearListBtn.addEventListener('click', () => {
-            photoItems = [];
-            downloadWordBtn.disabled = true;
-            downloadZipBtn.disabled = true;
-            renderWorkspace();
-            updateExportSummary();
-        });
-
         // ==========================================
-        // 4. 渲染主要工作區（白板局部放大 + 滾輪縮放/拖曳移動/旋轉 + 快速填寫欄位 + 單張刪除）
+        // 匯出區小總結：顯示有多少個不同的單位和編號
         // ==========================================
-        function renderWorkspace() {
+        function updateExportSummary() {
             if (photoItems.length === 0) {
-                photoWorkspace.innerHTML = `
-                    <div class="py-16 text-center text-slate-400 text-sm">
-                        尚未載入任何照片，請從上方「步驟 1」選擇照片資料夾，或點擊「載入 4 張模擬白板照片」立即體驗工作區。
-                    </div>`;
+                exportSummaryText.innerHTML = '尚未載入照片';
+                downloadWordBtn.disabled = true;
+                downloadZipBtn.disabled = true;
                 return;
             }
 
-            photoWorkspace.innerHTML = photoItems.map((item, idx) => {
-                // 計算原圖上紅框百分比位置
-                const rect = item.cropRect || { x: 0, y: 0, w: item.width, h: item.height };
-                const leftPct = Math.round((rect.x / item.width) * 100);
-                const topPct = Math.round((rect.y / item.height) * 100);
-                const widthPct = Math.round((rect.w / item.width) * 100);
-                const heightPct = Math.round((rect.h / item.height) * 100);
+            downloadWordBtn.disabled = false;
+            downloadZipBtn.disabled = false;
 
-                return `
-                <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/70 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-4 items-center relative">
-                    <!-- 左側：原圖縮圖 + 順逆時針旋轉按鈕 -->
-                    <div class="lg:col-span-3 space-y-1.5">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="font-bold text-slate-800 truncate max-w-[160px]" title="${item.origName}">#${String(idx + 1).padStart(3, '0')} ${item.origName}</span>
+            const { sorted, splitMode, groups } = getGroupedItemsForExport();
+
+            // 統計不同的單位 (Tower + Floor + Flat) 以及每個單位下的編號數
+            const unitMap = new Map();
+            sorted.forEach(item => {
+                const t = formatTowerOutput(item.tower) || '未填Tower';
+                const f = formatFloorOutput(item.floor) || '未填Floor';
+                const fl = formatFlatOutput(item.flat) || '未填Flat';
+                const unitKey = `${t} ${f} ${fl}`;
+                unitMap.set(unitKey, (unitMap.get(unitKey) || 0) + 1);
+            });
+
+            const unitBadges = Array.from(unitMap.entries())
+                .map(([unitName, count]) => `<span class="inline-block bg-white px-2 py-0.5 rounded border border-slate-300 text-slate-700 font-medium mr-1 mb-1">${unitName} <strong class="text-blue-600">(${count}個編號)</strong></span>`)
+                .join('');
+
+            let html = `
+                <div class="flex flex-wrap items-center gap-2 text-slate-800">
+                    <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md font-bold">🏠 不同單位數：${unitMap.size} 個</span>
+                    <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">🔢 總編號數 (照片數)：${sorted.length} 個</span>
+                </div>
+                <div class="mt-1.5 max-h-20 overflow-y-auto pt-1">${unitBadges}</div>
+            `;
+
+            if (splitMode === 'split') {
+                const towerBadges = Array.from(groups.values())
+                    .map(g => `<span class="inline-block bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 font-semibold mr-1">${g.towerLabel}: ${g.items.length}張</span>`)
+                    .join('');
+                html += `<div class="mt-1 text-[11px] text-slate-500">將分開輸出 <strong>${groups.size}</strong> 個檔案：${towerBadges}</div>`;
+            } else {
+                html += `<div class="mt-1 text-[11px] text-slate-500">將合併輸出為 <strong>1</strong> 個檔案（內含全部 ${sorted.length} 張已排序照片）。</div>`;
+            }
+
+            exportSummaryText.innerHTML = html;
+        }
+
+        // ==========================================
+        // 建立單張照片的工作區卡片 DOM
+        // ==========================================
+        function createPhotoCard(item, index) {
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-2xl shadow-sm border border-slate-200 p-4 transition hover:border-blue-300';
+            card.dataset.uid = item.uid;
+
+            card.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                    
+                    <!-- 左側：原圖預覽 + 旋轉與重定位控制 (3 cols) -->
+                    <div class="lg:col-span-3 flex flex-col items-center bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <div class="w-full flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-600">原圖（點擊移動放大框）</span>
                             <div class="flex items-center gap-1">
-                                <button type="button" data-idx="${idx}" data-rot="ccw" class="rotate-img-btn px-1.5 py-0.5 text-[11px] bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 font-semibold" title="逆時針旋轉 90°">
+                                <button type="button" class="rotate-left-btn text-xs bg-white hover:bg-blue-50 text-slate-700 border border-slate-300 px-2 py-1 rounded-lg font-bold transition" title="逆時針旋轉 90°">
                                     ↺ 左轉
                                 </button>
-                                <button type="button" data-idx="${idx}" data-rot="cw" class="rotate-img-btn px-1.5 py-0.5 text-[11px] bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 font-semibold" title="順時針旋轉 90°">
+                                <button type="button" class="rotate-right-btn text-xs bg-white hover:bg-blue-50 text-slate-700 border border-slate-300 px-2 py-1 rounded-lg font-bold transition" title="順時針旋轉 90°">
                                     ↻ 右轉
                                 </button>
                             </div>
                         </div>
-                        <div data-idx="${idx}" class="orig-img-container relative aspect-[4/3] bg-slate-200 rounded-xl overflow-hidden border border-slate-300 cursor-crosshair select-none">
-                            <img id="orig-img-${item.id}" src="${item.dataUrl}" alt="${item.origName}" class="w-full h-full object-contain pointer-events-none">
-                            <!-- 標示目前放大區域的紅框 -->
-                            <div id="crop-indicator-${item.id}" class="absolute border-2 border-rose-500 bg-rose-500/10 pointer-events-none transition-all duration-75"
-                                 style="left:${leftPct}%; top:${topPct}%; width:${widthPct}%; height:${heightPct}%;"></div>
+                        <canvas class="overview-canvas rounded-lg border border-slate-300 cursor-pointer max-w-full bg-slate-900/5"></canvas>
+                        <div class="w-full mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                            <span class="truncate max-w-[140px]" title="${item.originalName}">${item.originalName}</span>
+                            <button type="button" class="recenter-btn text-blue-600 hover:underline font-semibold">🎯 置中白板</button>
                         </div>
-                        <div class="text-[11px] text-slate-500 text-center">👆 點擊原圖快速跳轉放大位置</div>
                     </div>
 
-                    <!-- 中間主視覺：大幅放大的白板區域（支援滑鼠滾輪放大縮小 & 左鍵按住上下左右拖曳） -->
-                    <div class="lg:col-span-5 space-y-1.5">
-                        <div class="flex flex-wrap items-center justify-between gap-1">
-                            <span class="text-xs font-bold text-blue-800 flex items-center gap-1">
-                                🔍 白板放大區 <span class="text-[11px] font-normal text-slate-500">(滾輪縮放 / 按住左鍵拖曳移動)</span>
-                            </span>
+                    <!-- 中間：白板局部放大檢視區 (5 cols) -->
+                    <div class="lg:col-span-5 flex flex-col bg-slate-900 rounded-xl p-3 text-white">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-amber-400">🔍 白板局部放大區</span>
+                                <span class="text-[11px] text-slate-300">（滾輪縮放 / 按住左鍵上下左右拖曳）</span>
+                            </div>
                             <div class="flex items-center gap-1">
-                                <button type="button" data-idx="${idx}" data-zoom="out" class="zoom-ctrl-btn px-2 py-0.5 text-xs bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 font-bold" title="縮小視野">
-                                    －
-                                </button>
-                                <button type="button" data-idx="${idx}" data-zoom="in" class="zoom-ctrl-btn px-2 py-0.5 text-xs bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 font-bold" title="放大細節">
-                                    ＋
-                                </button>
-                                <button type="button" data-idx="${idx}" data-zoom="reset" class="zoom-ctrl-btn px-2 py-0.5 text-xs bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded text-blue-700 font-semibold" title="重新自動定位白板">
-                                    重抓白板
-                                </button>
+                                <button type="button" class="zoom-out-btn bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-2 py-1 rounded border border-slate-700">－</button>
+                                <span class="zoom-badge text-xs font-mono font-bold text-amber-300 px-1.5">2.2x</span>
+                                <button type="button" class="zoom-in-btn bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-2 py-1 rounded border border-slate-700">＋</button>
                             </div>
                         </div>
-                        <div data-idx="${idx}" class="zoom-view-container relative aspect-[16/10] bg-white rounded-xl overflow-hidden border-2 border-blue-500 shadow-inner flex items-center justify-center cursor-grab active:cursor-grabbing select-none">
-                            <img id="zoom-img-${item.id}" src="${item.boardCropUrl}" alt="白板局部放大" class="w-full h-full object-contain pointer-events-none">
+                        <div class="zoom-canvas-container relative w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-950 flex items-center justify-center">
+                            <canvas class="zoom-canvas w-full h-[230px] object-contain block"></canvas>
                         </div>
                     </div>
 
-                    <!-- 右側：快速填寫區 (Tower 數字增減、Floor 數字增減、Flat、相同 Flat 自動編號、刪除單張照片) -->
-                    <div class="lg:col-span-4 bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <span class="text-xs font-bold text-slate-700">📝 位置與編號設定</span>
-                            <button type="button" data-idx="${idx}" class="delete-photo-btn px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1">
-                                🗑️ 刪除此張照片
+                    <!-- 右側：Tower / Floor / Flat / 同Flat編號 填寫與刪除區 (4 cols) -->
+                    <div class="lg:col-span-4 flex flex-col justify-between space-y-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-slate-800 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">#${index + 1}</span>
+                                <button type="button" class="copy-prev-btn text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg border border-indigo-200 transition">
+                                    ↑ 複製上一張位置
+                                </button>
+                            </div>
+                            <button type="button" class="delete-photo-btn text-xs bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-bold px-2.5 py-1 rounded-lg border border-rose-200 transition">
+                                🗑️ 刪除此張
                             </button>
                         </div>
 
-                        <!-- 第一排：Tower (含增減按鈕) 與 Floor (含增減按鈕) -->
-                        <div class="grid grid-cols-2 gap-2.5">
+                        <!-- Tower 與 Floor (附數字增減按鈕) -->
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-[11px] font-bold text-indigo-700 mb-1">🏢 Tower (自動加 Tower)</label>
-                                <div class="flex items-center border border-indigo-300 rounded-lg bg-indigo-50/30 focus-within:bg-white overflow-hidden">
-                                    <button type="button" data-idx="${idx}" data-field="tower" data-step="-1" class="step-num-btn px-2 py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold text-xs select-none transition">－</button>
-                                    <input id="tower-input-${item.id}" type="text" inputmode="numeric" data-idx="${idx}" data-field="tower" value="${item.tower}" placeholder="數字"
-                                        class="workspace-input w-full text-xs px-1.5 py-1.5 bg-transparent font-bold text-slate-900 text-center focus:outline-none">
-                                    <button type="button" data-idx="${idx}" data-field="tower" data-step="1" class="step-num-btn px-2 py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold text-xs select-none transition">＋</button>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">🏢 Tower <span class="text-[11px] font-normal text-slate-400">(自動加Tower)</span></label>
+                                <div class="flex items-center">
+                                    <button type="button" class="tower-dec-btn w-8 h-9 rounded-l-xl bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 flex items-center justify-center border border-r-0 border-slate-300">－</button>
+                                    <input type="number" class="tower-input w-full h-9 text-center font-bold text-sm border-y border-slate-300 focus:outline-none focus:border-blue-500 bg-white" value="${item.tower}" placeholder="1">
+                                    <button type="button" class="tower-inc-btn w-8 h-9 rounded-r-xl bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 flex items-center justify-center border border-l-0 border-slate-300">＋</button>
                                 </div>
                             </div>
+
                             <div>
-                                <label class="block text-[11px] font-bold text-indigo-700 mb-1">🔢 Floor (自動加 F)</label>
-                                <div class="flex items-center border border-indigo-300 rounded-lg bg-indigo-50/30 focus-within:bg-white overflow-hidden">
-                                    <button type="button" data-idx="${idx}" data-field="floor" data-step="-1" class="step-num-btn px-2 py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold text-xs select-none transition">－</button>
-                                    <input id="floor-input-${item.id}" type="text" inputmode="numeric" data-idx="${idx}" data-field="floor" value="${item.floor}" placeholder="數字"
-                                        class="workspace-input w-full text-xs px-1.5 py-1.5 bg-transparent font-bold text-slate-900 text-center focus:outline-none">
-                                    <button type="button" data-idx="${idx}" data-field="floor" data-step="1" class="step-num-btn px-2 py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold text-xs select-none transition">＋</button>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">🪜 Floor <span class="text-[11px] font-normal text-slate-400">(自動加F)</span></label>
+                                <div class="flex items-center">
+                                    <button type="button" class="floor-dec-btn w-8 h-9 rounded-l-xl bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 flex items-center justify-center border border-r-0 border-slate-300">－</button>
+                                    <input type="number" class="floor-input w-full h-9 text-center font-bold text-sm border-y border-slate-300 focus:outline-none focus:border-blue-500 bg-white" value="${item.floor}" placeholder="12">
+                                    <button type="button" class="floor-inc-btn w-8 h-9 rounded-r-xl bg-slate-200 hover:bg-slate-300 font-bold text-slate-700 flex items-center justify-center border border-l-0 border-slate-300">＋</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 第二排：Flat 與 同Flat編號 -->
-                        <div class="grid grid-cols-2 gap-2.5">
+                        <!-- Flat 與 同Flat自動編號 -->
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-[11px] font-bold text-indigo-700 mb-1">🚪 Flat (單位 A-Z)</label>
-                                <input type="text" data-idx="${idx}" data-field="flat" value="${item.flat}" placeholder="如: A"
-                                    class="workspace-input w-full text-xs px-2.5 py-1.5 border border-indigo-300 rounded-lg bg-indigo-50/30 focus:bg-white font-bold text-slate-900 text-center uppercase">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">🚪 Flat 單位 <span class="text-[11px] font-normal text-slate-400">(A~Z)</span></label>
+                                <input type="text" class="flat-input w-full h-9 px-3 text-center font-bold text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-blue-500 uppercase bg-white" value="${item.flat}" placeholder="例如 A">
                             </div>
+
                             <div>
-                                <label class="block text-[11px] font-bold text-amber-700 mb-1" title="當 Flat 名稱相同時自動加上編號">🔢 同Flat編號</label>
-                                <input id="flat-no-${item.id}" type="text" data-idx="${idx}" data-field="flatNo" value="${item.flatNo || ''}" placeholder="自動"
-                                    class="workspace-input w-full text-xs px-2 py-1.5 border border-amber-300 rounded-lg bg-amber-50/50 focus:bg-white font-bold text-amber-900 text-center">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">🔢 同Flat編號 <span class="text-[11px] font-normal text-slate-400">(自動編號)</span></label>
+                                <input type="text" class="flat-seq-input w-full h-9 px-3 text-center font-bold text-sm rounded-xl border border-slate-300 bg-amber-50/60 text-amber-900 focus:outline-none focus:border-amber-500" value="${item.flatSeq || ''}" placeholder="自動">
                             </div>
                         </div>
 
-                        ${idx > 0 ? `
-                        <div class="flex justify-end">
-                            <button type="button" data-idx="${idx}" class="copy-prev-btn text-[11px] text-blue-600 hover:text-blue-800 font-semibold underline">
-                                ↑ 複製上一張的 Tower / Floor / Flat
-                            </button>
-                        </div>
-                        ` : ''}
-
-                        <!-- 第三排：自動組合的最終名稱（可手動微調，將印在 Word 照片上方） -->
-                        <div class="pt-1 border-t border-slate-100">
-                            <label class="block text-[11px] font-bold text-emerald-700 mb-1">
-                                📄 改名後名稱（自動套用格式，將填入 Word 照片上方）：
-                            </label>
-                            <input id="final-name-${item.id}" type="text" data-idx="${idx}" data-field="finalBaseName" value="${item.finalBaseName}"
-                                class="workspace-input w-full text-xs font-mono font-bold px-2.5 py-1.5 border border-emerald-300 rounded-lg bg-emerald-50/40 text-slate-900">
+                        <!-- 即時輸出預覽 -->
+                        <div class="p-2.5 bg-white rounded-xl border border-slate-200 text-xs space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-400">Word 顯示：</span>
+                                <span class="word-preview-label font-bold text-emerald-700"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-400">ZIP 檔名：</span>
+                                <span class="zip-preview-label font-mono font-semibold text-blue-700 truncate max-w-[200px]"></span>
+                            </div>
                         </div>
                     </div>
-                </div>`;
-            }).join('');
 
-            bindWorkspaceEvents();
-        }
+                </div>
+            `;
 
-        function bindWorkspaceEvents() {
-            // 1. 綁定文字欄位輸入 (tower, floor, flat, flatNo, finalBaseName)
-            document.querySelectorAll('.workspace-input').forEach(input => {
-                input.addEventListener('input', (e) => {
-                    const idx = parseInt(e.target.dataset.idx, 10);
-                    const field = e.target.dataset.field;
-                    const item = photoItems[idx];
-                    if (!item) return;
+            // 綁定 Canvas 與預覽元素
+            item.overviewCanvas = card.querySelector('.overview-canvas');
+            item.zoomCanvas = card.querySelector('.zoom-canvas');
+            item.zoomBadgeEl = card.querySelector('.zoom-badge');
+            item.wordPreviewEl = card.querySelector('.word-preview-label');
+            item.zipPreviewEl = card.querySelector('.zip-preview-label');
 
-                    item[field] = e.target.value;
-                    if (field === 'finalBaseName') {
-                        item.manualOverride = true;
-                        updateExportSummary();
-                    } else if (field === 'flatNo') {
-                        item.flatNoManual = e.target.value.trim() !== '';
-                        item.manualOverride = false;
-                        refreshAllFileNames();
-                    } else {
-                        item.manualOverride = false;
-                        refreshAllFileNames();
-                    }
-                });
+            const towerInput = card.querySelector('.tower-input');
+            const floorInput = card.querySelector('.floor-input');
+            const flatInput = card.querySelector('.flat-input');
+            const flatSeqInput = card.querySelector('.flat-seq-input');
+            item.towerInput = towerInput;
+            item.floorInput = floorInput;
+            item.flatInput = flatInput;
+            item.flatSeqInput = flatSeqInput;
+
+            // 1. 點擊原圖移動放大位置
+            item.overviewCanvas.addEventListener('click', (e) => {
+                const rect = item.overviewCanvas.getBoundingClientRect();
+                item.centerX = (e.clientX - rect.left) / rect.width;
+                item.centerY = (e.clientY - rect.top) / rect.height;
+                renderCardCanvases(item);
             });
 
-            // 1b. 綁定 Tower 與 Floor 的數字增減按鈕 (－ / ＋)
-            document.querySelectorAll('.step-num-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = parseInt(btn.dataset.idx, 10);
-                    const field = btn.dataset.field;
-                    const step = parseInt(btn.dataset.step, 10);
-                    const item = photoItems[idx];
-                    if (!item) return;
-
-                    const raw = (item[field] || '').toString().trim();
-                    const numMatch = raw.match(/-?\d+/);
-                    let nextNum = numMatch ? parseInt(numMatch[0], 10) + step : (step > 0 ? 1 : 1);
-                    if (nextNum < 1) nextNum = 1;
-
-                    item[field] = String(nextNum);
-                    item.manualOverride = false;
-
-                    const targetInput = document.getElementById(`${field}-input-${item.id}`);
-                    if (targetInput) targetInput.value = item[field];
-
-                    refreshAllFileNames();
-                });
+            // 2. 逆時針 / 順時針旋轉圖片
+            card.querySelector('.rotate-left-btn').addEventListener('click', () => {
+                item.rotation = (item.rotation - 90 + 360) % 360;
+                renderCardCanvases(item);
+            });
+            card.querySelector('.rotate-right-btn').addEventListener('click', () => {
+                item.rotation = (item.rotation + 90) % 360;
+                renderCardCanvases(item);
             });
 
-            // 1c. 綁定單張照片刪除按鈕
-            document.querySelectorAll('.delete-photo-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = parseInt(btn.dataset.idx, 10);
-                    if (idx >= 0 && idx < photoItems.length) {
-                        photoItems.splice(idx, 1);
-                        if (photoItems.length === 0) {
-                            downloadWordBtn.disabled = true;
-                            downloadZipBtn.disabled = true;
-                        }
-                        refreshAllFileNames();
-                        renderWorkspace();
-                        updateExportSummary();
-                    }
-                });
+            // 3. 重新置中白板
+            card.querySelector('.recenter-btn').addEventListener('click', () => {
+                const wb = detectWhiteboardRegion(item.imgElement);
+                item.centerX = wb.centerX;
+                item.centerY = wb.centerY;
+                item.zoom = wb.zoom;
+                renderCardCanvases(item);
             });
 
-            // 1d. 綁定順逆時針旋轉圖片按鈕
-            document.querySelectorAll('.rotate-img-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const idx = parseInt(btn.dataset.idx, 10);
-                    const dir = btn.dataset.rot; // 'cw' or 'ccw'
-                    const item = photoItems[idx];
-                    if (!item) return;
-
-                    const rotated = await rotateDataUrl90(item.dataUrl, dir);
-                    item.dataUrl = rotated.dataUrl;
-                    item.width = rotated.width;
-                    item.height = rotated.height;
-
-                    // 旋轉後重新自動定位白板並更新放大區域
-                    const zoomRes = await detectAndZoomWhiteboard(item.dataUrl, null, item.zoomMultiplier);
-                    item.boardCropUrl = zoomRes.zoomedDataUrl;
-                    item.cropBox = zoomRes.cropBox;
-                    item.cropRect = zoomRes.cropRect;
-                    item.customCenter = {
-                        xRatio: (zoomRes.cropRect.x + zoomRes.cropRect.w / 2) / item.width,
-                        yRatio: (zoomRes.cropRect.y + zoomRes.cropRect.h / 2) / item.height
-                    };
-
-                    const origImg = document.getElementById(`orig-img-${item.id}`);
-                    if (origImg) origImg.src = item.dataUrl;
-                    updateSingleCardZoomDom(item);
-                });
+            // 4. 放大鏡按鈕縮放
+            card.querySelector('.zoom-in-btn').addEventListener('click', () => {
+                item.zoom = Math.min(8.0, (item.zoom || 2.2) + 0.4);
+                renderCardCanvases(item);
+            });
+            card.querySelector('.zoom-out-btn').addEventListener('click', () => {
+                item.zoom = Math.max(1.0, (item.zoom || 2.2) - 0.4);
+                renderCardCanvases(item);
             });
 
-            // 2. 綁定「複製上一張的 Tower / Floor / Flat」
-            document.querySelectorAll('.copy-prev-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = parseInt(btn.dataset.idx, 10);
-                    if (idx > 0 && photoItems[idx - 1]) {
-                        const prev = photoItems[idx - 1];
-                        const curr = photoItems[idx];
-                        curr.tower = prev.tower;
-                        curr.floor = prev.floor;
-                        curr.flat = prev.flat;
-                        curr.flatNoManual = false;
-                        curr.manualOverride = false;
-                        refreshAllFileNames();
-                        renderWorkspace();
-                    }
-                });
+            // 5. 滑鼠滾輪縮放 (支援無段放大縮小)
+            item.zoomCanvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.25 : -0.25;
+                item.zoom = Math.min(8.0, Math.max(1.0, (item.zoom || 2.2) + delta));
+                renderCardCanvases(item);
+            }, { passive: false });
+
+            // 6. 滑鼠左鍵按住上下左右拖曳移動視野 (亦支援觸控拖曳)
+            let isDragging = false;
+            let lastX = 0, lastY = 0;
+
+            const startDrag = (clientX, clientY) => {
+                isDragging = true;
+                lastX = clientX;
+                lastY = clientY;
+            };
+            const moveDrag = (clientX, clientY) => {
+                if (!isDragging) return;
+                const rect = item.zoomCanvas.getBoundingClientRect();
+                const dx = (clientX - lastX) / rect.width;
+                const dy = (clientY - lastY) / rect.height;
+                lastX = clientX;
+                lastY = clientY;
+
+                const zoom = item.zoom || 2.2;
+                item.centerX -= dx / zoom;
+                item.centerY -= dy / zoom;
+                renderCardCanvases(item);
+            };
+            const endDrag = () => { isDragging = false; };
+
+            item.zoomCanvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) startDrag(e.clientX, e.clientY);
             });
+            window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+            window.addEventListener('mouseup', endDrag);
 
-            // 3. 點擊左側原圖任意位置，立即移動白板放大鏡中心
-            document.querySelectorAll('.orig-img-container').forEach(container => {
-                container.addEventListener('click', async (e) => {
-                    const idx = parseInt(container.dataset.idx, 10);
-                    const item = photoItems[idx];
-                    if (!item) return;
-
-                    const rect = container.getBoundingClientRect();
-                    const xRatio = Math.max(0.05, Math.min(0.95, (e.clientX - rect.left) / rect.width));
-                    const yRatio = Math.max(0.05, Math.min(0.95, (e.clientY - rect.top) / rect.height));
-
-                    item.customCenter = { xRatio, yRatio };
-                    const zoomRes = await detectAndZoomWhiteboard(item.dataUrl, item.customCenter, item.zoomMultiplier);
-                    item.boardCropUrl = zoomRes.zoomedDataUrl;
-                    item.cropRect = zoomRes.cropRect;
-                    updateSingleCardZoomDom(item);
-                });
-            });
-
-            // 4. 在白板放大檢視區支援「滑鼠滾輪放大縮小」與「左鍵按住上下左右移動」
-            document.querySelectorAll('.zoom-view-container').forEach(zoomContainer => {
-                const idx = parseInt(zoomContainer.dataset.idx, 10);
-
-                // 滑鼠滾輪縮放
-                zoomContainer.addEventListener('wheel', async (e) => {
+            item.zoomCanvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) startDrag(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+            item.zoomCanvas.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1) {
                     e.preventDefault();
-                    const item = photoItems[idx];
-                    if (!item) return;
+                    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: false });
+            item.zoomCanvas.addEventListener('touchend', endDrag);
 
-                    if (!item.customCenter && item.cropRect) {
-                        item.customCenter = {
-                            xRatio: (item.cropRect.x + item.cropRect.w / 2) / item.width,
-                            yRatio: (item.cropRect.y + item.cropRect.h / 2) / item.height
-                        };
-                    }
-
-                    const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
-                    item.zoomMultiplier = Math.max(0.45, Math.min(4.5, (item.zoomMultiplier || 1.0) * factor));
-
-                    const zoomRes = await detectAndZoomWhiteboard(item.dataUrl, item.customCenter, item.zoomMultiplier);
-                    item.boardCropUrl = zoomRes.zoomedDataUrl;
-                    item.cropRect = zoomRes.cropRect;
-                    updateSingleCardZoomDom(item);
-                }, { passive: false });
-
-                // 左鍵按住上下左右拖曳平移
-                let isDragging = false;
-                let startX = 0;
-                let startY = 0;
-                let startCenter = null;
-
-                zoomContainer.addEventListener('mousedown', (e) => {
-                    if (e.button !== 0) return; // 僅限滑鼠左鍵
-                    const item = photoItems[idx];
-                    if (!item) return;
-
-                    isDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    if (!item.customCenter && item.cropRect) {
-                        item.customCenter = {
-                            xRatio: (item.cropRect.x + item.cropRect.w / 2) / item.width,
-                            yRatio: (item.cropRect.y + item.cropRect.h / 2) / item.height
-                        };
-                    }
-                    startCenter = { ...(item.customCenter || { xRatio: 0.5, yRatio: 0.5 }) };
-                });
-
-                window.addEventListener('mousemove', async (e) => {
-                    if (!isDragging) return;
-                    const item = photoItems[idx];
-                    if (!item || !startCenter) return;
-
-                    const rect = zoomContainer.getBoundingClientRect();
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-
-                    // 拖曳方向：往右拉時觀看左方內容（因此中心點往反方向偏移）
-                    const scaleFactor = 0.45 / (item.zoomMultiplier || 1.0);
-                    const newX = Math.max(0.05, Math.min(0.95, startCenter.xRatio - (dx / rect.width) * scaleFactor));
-                    const newY = Math.max(0.05, Math.min(0.95, startCenter.yRatio - (dy / rect.height) * scaleFactor));
-
-                    item.customCenter = { xRatio: newX, yRatio: newY };
-                    const zoomRes = await detectAndZoomWhiteboard(item.dataUrl, item.customCenter, item.zoomMultiplier);
-                    item.boardCropUrl = zoomRes.zoomedDataUrl;
-                    item.cropRect = zoomRes.cropRect;
-                    updateSingleCardZoomDom(item);
-                });
-
-                window.addEventListener('mouseup', () => {
-                    isDragging = false;
-                });
+            // 7. Tower 數字輸入與增減按鈕
+            towerInput.addEventListener('input', () => {
+                item.tower = towerInput.value.trim();
+                refreshAllCardsAndSummary();
+            });
+            card.querySelector('.tower-dec-btn').addEventListener('click', () => {
+                const cur = parseInt(towerInput.value || '1', 10) || 1;
+                towerInput.value = Math.max(1, cur - 1);
+                item.tower = towerInput.value;
+                refreshAllCardsAndSummary();
+            });
+            card.querySelector('.tower-inc-btn').addEventListener('click', () => {
+                const cur = parseInt(towerInput.value || '0', 10) || 0;
+                towerInput.value = cur + 1;
+                item.tower = towerInput.value;
+                refreshAllCardsAndSummary();
             });
 
-            // 5. 白板縮放控制按鈕 (＋ / － / 重抓白板)
-            document.querySelectorAll('.zoom-ctrl-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const idx = parseInt(btn.dataset.idx, 10);
-                    const action = btn.dataset.zoom;
-                    const item = photoItems[idx];
-                    if (!item) return;
-
-                    if (action === 'in') {
-                        item.zoomMultiplier = Math.min(4.5, (item.zoomMultiplier || 1.0) * 1.25);
-                    } else if (action === 'out') {
-                        item.zoomMultiplier = Math.max(0.45, (item.zoomMultiplier || 1.0) / 1.25);
-                    } else if (action === 'reset') {
-                        item.customCenter = null;
-                        item.zoomMultiplier = 1.0;
-                    }
-
-                    const zoomRes = await detectAndZoomWhiteboard(item.dataUrl, item.customCenter, item.zoomMultiplier);
-                    item.boardCropUrl = zoomRes.zoomedDataUrl;
-                    item.cropRect = zoomRes.cropRect;
-                    if (!item.customCenter && zoomRes.cropRect) {
-                        item.customCenter = {
-                            xRatio: (zoomRes.cropRect.x + zoomRes.cropRect.w / 2) / item.width,
-                            yRatio: (zoomRes.cropRect.y + zoomRes.cropRect.h / 2) / item.height
-                        };
-                    }
-                    updateSingleCardZoomDom(item);
-                });
+            // 8. Floor 數字輸入與增減按鈕
+            floorInput.addEventListener('input', () => {
+                item.floor = floorInput.value.trim();
+                refreshAllCardsAndSummary();
             });
+            card.querySelector('.floor-dec-btn').addEventListener('click', () => {
+                const cur = parseInt(floorInput.value || '1', 10) || 1;
+                floorInput.value = Math.max(1, cur - 1);
+                item.floor = floorInput.value;
+                refreshAllCardsAndSummary();
+            });
+            card.querySelector('.floor-inc-btn').addEventListener('click', () => {
+                const cur = parseInt(floorInput.value || '0', 10) || 0;
+                floorInput.value = cur + 1;
+                item.floor = floorInput.value;
+                refreshAllCardsAndSummary();
+            });
+
+            // 9. Flat 與 同Flat編號 輸入
+            flatInput.addEventListener('input', () => {
+                item.flat = flatInput.value.trim().toUpperCase();
+                item.manualSeqOverride = false;
+                refreshAllCardsAndSummary();
+            });
+            flatSeqInput.addEventListener('input', () => {
+                item.flatSeq = flatSeqInput.value.trim();
+                item.manualSeqOverride = Boolean(item.flatSeq);
+                refreshAllCardsAndSummary();
+            });
+
+            // 10. 複製上一張的 Tower / Floor / Flat
+            card.querySelector('.copy-prev-btn').addEventListener('click', () => {
+                const idx = photoItems.findIndex(p => p.uid === item.uid);
+                if (idx <= 0) {
+                    showToast('已經是第一張照片！', 'ℹ️');
+                    return;
+                }
+                const prev = photoItems[idx - 1];
+                item.tower = prev.tower;
+                item.floor = prev.floor;
+                item.flat = prev.flat;
+                item.manualSeqOverride = false;
+                towerInput.value = item.tower;
+                floorInput.value = item.floor;
+                flatInput.value = item.flat;
+                refreshAllCardsAndSummary();
+                showToast(`已複製上一張位置：Tower${item.tower} ${item.floor}F ${item.flat}`);
+            });
+
+            // 11. 獨立刪除此張照片
+            card.querySelector('.delete-photo-btn').addEventListener('click', () => {
+                photoItems = photoItems.filter(p => p.uid !== item.uid);
+                renderFullPhotoList();
+                showToast(`已刪除照片：${item.originalName}`, '🗑️');
+            });
+
+            // 初次繪製 Canvas
+            renderCardCanvases(item);
+            return card;
         }
 
-        function updateSingleCardZoomDom(item) {
-            const zoomImg = document.getElementById(`zoom-img-${item.id}`);
-            if (zoomImg) zoomImg.src = item.boardCropUrl;
-
-            const indicator = document.getElementById(`crop-indicator-${item.id}`);
-            if (indicator && item.cropRect) {
-                indicator.style.left = `${Math.round((item.cropRect.x / item.width) * 100)}%`;
-                indicator.style.top = `${Math.round((item.cropRect.y / item.height) * 100)}%`;
-                indicator.style.width = `${Math.round((item.cropRect.w / item.width) * 100)}%`;
-                indicator.style.height = `${Math.round((item.cropRect.h / item.height) * 100)}%`;
-            }
+        function renderFullPhotoList() {
+            photoListContainer.innerHTML = '';
+            photoItems.forEach((item, idx) => {
+                const card = createPhotoCard(item, idx);
+                photoListContainer.appendChild(card);
+            });
+            refreshAllCardsAndSummary();
         }
 
         // ==========================================
-        // 5. 輸出篩選設定（選 Tag & 是否分開不同 Tower 輸出 Word）
+        // 讀取檔案與產生測試工程照片
         // ==========================================
-        document.querySelectorAll('.export-tag-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                currentExportTagFilter = btn.dataset.filterTag;
-                document.querySelectorAll('.export-tag-btn').forEach(b => {
-                    const active = b.dataset.filterTag === currentExportTagFilter;
-                    b.className = `export-tag-btn py-2 px-2 text-xs font-bold rounded-lg border transition ${
-                        active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                    }`;
-                });
-                updateExportSummary();
-            });
-        });
-
-        document.querySelectorAll('input[name="splitTowerMode"]').forEach(radio => {
-            radio.addEventListener('change', updateExportSummary);
-        });
-
-        function normalizeTowerKey(rawTower) {
-            const formatted = formatTowerOutput(rawTower);
-            return formatted ? formatted.toUpperCase() : '未填Tower';
-        }
-
-        function getFilteredAndGroupedItems() {
-            // 先篩選符合指定 Tag 的照片，並依照 Tower -> Floor(小到大) -> Flat(A-Z) -> 同Flat編號(小到大) 排序
-            const filtered = photoItems
-                .filter(item => {
-                    if (currentExportTagFilter === 'ALL') return true;
-                    return item.tag === currentExportTagFilter;
-                })
-                .slice()
-                .sort(comparePhotoItems);
-
-            const splitMode = document.querySelector('input[name="splitTowerMode"]:checked')?.value || 'split';
-            const groups = new Map();
-
-            if (splitMode === 'split') {
-                filtered.forEach(item => {
-                    const tKey = normalizeTowerKey(item.tower);
-                    if (!groups.has(tKey)) {
-                        groups.set(tKey, {
-                            towerLabel: formatTowerOutput(item.tower) || '未填Tower',
-                            items: []
-                        });
-                    }
-                    groups.get(tKey).items.push(item);
-                });
-                // 確保每個 Tower 群組內部皆嚴格依照 Floor(小到大) -> Flat(A-Z) -> 編號(小到大) 排序
-                groups.forEach(g => g.items.sort(comparePhotoItems));
-            } else {
-                groups.set('ALL_TOWERS', {
-                    towerLabel: '全部Tower合併',
-                    items: filtered
-                });
-            }
-
-            return { filtered, splitMode, groups };
-        }
-
-        function updateExportSummary() {
-            if (photoItems.length === 0) {
-                exportSummaryText.innerHTML = '尚未載入照片';
+        async function handleSelectedFiles(fileList) {
+            const validFiles = Array.from(fileList).filter(f => f.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|bmp)$/i.test(f.name));
+            if (validFiles.length === 0) {
+                showToast('未找到支援的照片檔案！', '⚠️');
                 return;
             }
 
-            const { filtered, splitMode, groups } = getFilteredAndGroupedItems();
-            const tagLabel = currentExportTagFilter === 'ALL' ? '全部 Tag' : `「${currentExportTagFilter}」`;
+            // 依原檔名自然排序
+            validFiles.sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
 
-            if (filtered.length === 0) {
-                exportSummaryText.innerHTML = `<span class="text-rose-600 font-semibold">⚠️ 目前沒有符合 ${tagLabel} 的照片，請調整篩選或照片 Tag。</span>`;
-                downloadWordBtn.disabled = true;
-                return;
+            for (const file of validFiles) {
+                const dataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+
+                const img = await new Promise((resolve) => {
+                    const image = new Image();
+                    image.onload = () => resolve(image);
+                    image.src = dataUrl;
+                });
+
+                const extMatch = file.name.match(/(\.[^.]+)$/);
+                const ext = extMatch ? extMatch[1].toLowerCase() : '.jpg';
+                const parsed = parseFilenameForFields(file.name);
+                const wb = detectWhiteboardRegion(img);
+
+                photoItems.push({
+                    uid: nextPhotoUid++,
+                    originalName: file.name,
+                    ext,
+                    imgElement: img,
+                    rotation: 0,
+                    centerX: wb.centerX,
+                    centerY: wb.centerY,
+                    zoom: wb.zoom,
+                    tower: parsed.tower,
+                    floor: parsed.floor,
+                    flat: parsed.flat,
+                    flatSeq: '1',
+                    manualSeqOverride: false
+                });
             }
 
-            downloadWordBtn.disabled = false;
-            if (splitMode === 'split') {
-                const groupDesc = Array.from(groups.values())
-                    .map(g => `<span class="inline-block bg-white px-2 py-0.5 rounded border border-slate-300 font-semibold text-blue-700 mr-1 mb-1">${g.towerLabel} (${g.items.length}張)</span>`)
-                    .join('');
-                exportSummaryText.innerHTML = `
-                    <div>符合 ${tagLabel} 共 <strong>${filtered.length}</strong> 張照片，將依 Tower 分開匯出 <strong>${groups.size} 個 Word 檔</strong>：</div>
-                    <div class="mt-1.5">${groupDesc}</div>
-                `;
-            } else {
-                exportSummaryText.innerHTML = `
-                    <div>符合 ${tagLabel} 共 <strong>${filtered.length}</strong> 張照片，將合併匯出為 <strong>1 個 Word 檔</strong>。</div>
-                `;
-            }
+            renderFullPhotoList();
+            showToast(`成功載入 ${validFiles.length} 張照片，已自動解析檔名與白板位置！`);
         }
 
-        // ==========================================
-        // 6. 產生並下載 Word (.docx) 與改名後照片 (.zip)
-        // ==========================================
-        function base64ToUint8Array(dataUrl) {
-            const base64 = dataUrl.split(',')[1];
-            const binary = atob(base64);
-            const len = binary.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-            return bytes;
-        }
+        folderInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleSelectedFiles(e.target.files);
+            e.target.value = '';
+        });
 
-        async function createWordBlobForItems(items, docTitle) {
-            const { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, PageBreak, AlignmentType } = window.docx;
+        filesInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleSelectedFiles(e.target.files);
+            e.target.value = '';
+        });
 
-            const children = [
-                new Paragraph({
-                    text: docTitle,
-                    heading: HeadingLevel.HEADING_1,
-                    alignment: AlignmentType.CENTER,
-                    spacing: { after: 300 }
-                })
+        // 產生 4 張模擬工程白板照片供立即測試
+        loadDemoBtn.addEventListener('click', async () => {
+            const demoSpecs = [
+                { filename: 'Tower1_12F_B.jpg', tower: '1', floor: '12', flat: 'B', boardX: 0.62, boardY: 0.58, bg: '#334155' },
+                { filename: 'Tower1_8F_A_01.jpg', tower: '1', floor: '8', flat: 'A', boardX: 0.35, boardY: 0.62, bg: '#1e293b' },
+                { filename: 'Tower1_8F_A_02.jpg', tower: '1', floor: '8', flat: 'A', boardX: 0.68, boardY: 0.45, bg: '#3b4252' },
+                { filename: 'Tower2_15F_C.jpg', tower: '2', floor: '15', flat: 'C', boardX: 0.48, boardY: 0.55, bg: '#27272a' }
             ];
 
-            // 最佳化：預先轉換所有圖片的位元陣列以提升匯出速度
-            const imageBuffers = items.map(item => ({
-                item,
-                buffer: base64ToUint8Array(item.dataUrl),
-                wordTitle: buildWordItemTitle(item)
-            }));
+            for (const spec of demoSpecs) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1280;
+                canvas.height = 960;
+                const ctx = canvas.getContext('2d');
 
-            imageBuffers.forEach(({ item, buffer, wordTitle }, idx) => {
-                // 每張照片獨立一頁（若非第一頁，前面加上分頁符號）
-                if (idx > 0) {
-                    children.push(new Paragraph({ children: [new PageBreak()] }));
+                // 模擬工地背景與管線
+                ctx.fillStyle = spec.bg;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 18;
+                ctx.beginPath();
+                ctx.moveTo(180, 0); ctx.lineTo(180, 960);
+                ctx.moveTo(320, 0); ctx.lineTo(320, 960);
+                ctx.stroke();
+
+                // 繪製高亮度工程白板
+                const bw = 420, bh = 270;
+                const bx = Math.round(spec.boardX * canvas.width - bw / 2);
+                const by = Math.round(spec.boardY * canvas.height - bh / 2);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(bx, by, bw, bh);
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 5;
+                ctx.strokeRect(bx, by, bw, bh);
+
+                // 表格線
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(bx, by + 65); ctx.lineTo(bx + bw, by + 65);
+                ctx.moveTo(bx, by + 135); ctx.lineTo(bx + bw, by + 135);
+                ctx.moveTo(bx, by + 205); ctx.lineTo(bx + bw, by + 205);
+                ctx.moveTo(bx + 130, by + 65); ctx.lineTo(bx + 130, by + bh);
+                ctx.stroke();
+
+                // 白板文字
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 26px sans-serif';
+                ctx.fillText('喉管工程查驗紀錄白板', bx + 75, by + 44);
+
+                ctx.font = 'bold 24px sans-serif';
+                ctx.fillText('座數 Tower', bx + 12, by + 110);
+                ctx.fillText('樓層 Floor', bx + 12, by + 180);
+                ctx.fillText('單位 Flat', bx + 12, by + 248);
+
+                ctx.fillStyle = '#1d4ed8';
+                ctx.font = 'bold 30px sans-serif';
+                ctx.fillText(`Tower ${spec.tower}`, bx + 155, by + 112);
+                ctx.fillText(`${spec.floor}/F`, bx + 155, by + 182);
+                ctx.fillText(`Flat ${spec.flat}`, bx + 155, by + 250);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                const img = await new Promise((resolve) => {
+                    const image = new Image();
+                    image.onload = () => resolve(image);
+                    image.src = dataUrl;
+                });
+
+                const parsed = parseFilenameForFields(spec.filename);
+                const wb = detectWhiteboardRegion(img);
+
+                photoItems.push({
+                    uid: nextPhotoUid++,
+                    originalName: spec.filename,
+                    ext: '.jpg',
+                    imgElement: img,
+                    rotation: 0,
+                    centerX: wb.centerX,
+                    centerY: wb.centerY,
+                    zoom: wb.zoom,
+                    tower: parsed.tower,
+                    floor: parsed.floor,
+                    flat: parsed.flat,
+                    flatSeq: '1',
+                    manualSeqOverride: false
+                });
+            }
+
+            renderFullPhotoList();
+            showToast('已載入 4 張測試工程照片（包含同單位自動編號與不同 Tower 測試）！');
+        });
+
+        clearAllBtn.addEventListener('click', () => {
+            photoItems = [];
+            renderFullPhotoList();
+            showToast('已清空所有照片', '🗑️');
+        });
+
+        // ==========================================
+        // 全域預設名稱、Tag 切換與批次套用 Floor / Tower
+        // ==========================================
+        defaultBaseNameInput.addEventListener('input', () => {
+            updateGlobalPreview();
+            refreshAllCardsAndSummary();
+        });
+
+        globalTagButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedGlobalTag = btn.dataset.tag;
+                globalTagButtons.forEach(b => {
+                    const active = b.dataset.tag === selectedGlobalTag;
+                    b.className = active
+                        ? 'tag-btn py-2 px-3 rounded-xl text-sm font-bold border-2 border-blue-600 bg-blue-600 text-white transition'
+                        : 'tag-btn py-2 px-3 rounded-xl text-sm font-bold border-2 border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition';
+                });
+                updateGlobalPreview();
+                refreshAllCardsAndSummary();
+            });
+        });
+
+        splitTowerModeSelect.addEventListener('change', updateExportSummary);
+
+        // 批次 Floor 增減與一鍵套用
+        batchFloorDecBtn.addEventListener('click', () => {
+            batchFloorInput.value = Math.max(1, (parseInt(batchFloorInput.value || '1', 10) || 1) - 1);
+        });
+        batchFloorIncBtn.addEventListener('click', () => {
+            batchFloorInput.value = (parseInt(batchFloorInput.value || '0', 10) || 0) + 1;
+        });
+        applyBatchFloorBtn.addEventListener('click', () => {
+            if (photoItems.length === 0) {
+                showToast('請先載入照片後再套用 Floor！', '⚠️');
+                return;
+            }
+            const targetFloor = batchFloorInput.value.trim();
+            photoItems.forEach(item => {
+                item.floor = targetFloor;
+                if (item.floorInput) item.floorInput.value = targetFloor;
+            });
+            refreshAllCardsAndSummary();
+            showToast(`已將全部 ${photoItems.length} 張照片套用為 ${targetFloor}F！`);
+        });
+
+        // 批次 Tower 增減與一鍵套用
+        batchTowerDecBtn.addEventListener('click', () => {
+            batchTowerInput.value = Math.max(1, (parseInt(batchTowerInput.value || '1', 10) || 1) - 1);
+        });
+        batchTowerIncBtn.addEventListener('click', () => {
+            batchTowerInput.value = (parseInt(batchTowerInput.value || '0', 10) || 0) + 1;
+        });
+        applyBatchTowerBtn.addEventListener('click', () => {
+            if (photoItems.length === 0) {
+                showToast('請先載入照片後再套用 Tower！', '⚠️');
+                return;
+            }
+            const targetTower = batchTowerInput.value.trim();
+            photoItems.forEach(item => {
+                item.tower = targetTower;
+                if (item.towerInput) item.towerInput.value = targetTower;
+            });
+            refreshAllCardsAndSummary();
+            showToast(`已將全部 ${photoItems.length} 張照片套用為 Tower${targetTower}！`);
+        });
+
+        // ==========================================
+        // 匯出圖片壓縮與轉正輔助 (大幅提升 Word 匯出速度)
+        // ==========================================
+        async function getOptimizedImageBufferAndDim(item, maxSide = 1280) {
+            const srcCanvas = getRotatedSourceCanvas(item);
+            let w = srcCanvas.width;
+            let h = srcCanvas.height;
+
+            if (w > maxSide || h > maxSide) {
+                if (w >= h) {
+                    h = Math.round((h / w) * maxSide);
+                    w = maxSide;
+                } else {
+                    w = Math.round((w / h) * maxSide);
+                    h = maxSide;
                 }
+            }
 
-                // 名字在前面（上方，不包含 tag），字體加粗加大靠左
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = w;
+            outCanvas.height = h;
+            const ctx = outCanvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(srcCanvas, 0, 0, w, h);
+
+            const blob = await new Promise(resolve => outCanvas.toBlob(resolve, 'image/jpeg', 0.85));
+            const arrayBuffer = await blob.arrayBuffer();
+
+            // 計算在 Word 一頁一圖中的理想顯示尺寸 (最大寬度 520px, 最大高度 640px)
+            const maxDocW = 520;
+            const maxDocH = 640;
+            const scale = Math.min(maxDocW / w, maxDocH / h, 1);
+            const docW = Math.round(w * scale);
+            const docH = Math.round(h * scale);
+
+            return { blob, arrayBuffer, docW, docH };
+        }
+
+        // ==========================================
+        // 匯出 Word (.docx)：每頁只輸出一張圖片跟名稱（只顯示 Tower, Floor, Flat，不含 Tag）
+        // ==========================================
+        async function buildSingleWordBlob(itemsForDoc) {
+            const docxLib = window.docx;
+            const { Document, Packer, Paragraph, TextRun, ImageRun, AlignmentType } = docxLib;
+
+            const children = [];
+
+            for (let i = 0; i < itemsForDoc.length; i++) {
+                const item = itemsForDoc[i];
+                const labelText = getWordPhotoLabel(item);
+                const { arrayBuffer, docW, docH } = await getOptimizedImageBufferAndDim(item, 1280);
+
+                // 1. 照片名稱在前面 (只顯示 Tower, Floor, Flat，第 2 張起直接透過 pageBreakBefore 開新一頁)
                 children.push(
                     new Paragraph({
+                        pageBreakBefore: i > 0,
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 120, after: 240 },
                         children: [
                             new TextRun({
-                                text: `【${String(idx + 1).padStart(3, '0')}】 ${wordTitle}`,
+                                text: labelText,
                                 bold: true,
-                                size: 28, // 14pt
-                                color: "1E293B"
+                                size: 32, // 16pt 清晰粗體標題
+                                font: 'Microsoft JhengHei'
                             })
-                        ],
-                        alignment: AlignmentType.LEFT,
-                        spacing: { before: 120, after: 200 }
+                        ]
                     })
                 );
 
-                // 照片在後面（下方），設定適當寬度與等比例高度
-                const targetWidth = 460;
-                const targetHeight = Math.round((item.height / item.width) * targetWidth) || 345;
-
+                // 2. 後面是圖片 (置中排版)
                 children.push(
                     new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 80, after: 120 },
                         children: [
                             new ImageRun({
-                                data: buffer,
-                                transformation: { width: targetWidth, height: targetHeight }
+                                data: arrayBuffer,
+                                transformation: {
+                                    width: docW,
+                                    height: docH
+                                }
                             })
-                        ],
-                        alignment: AlignmentType.CENTER,
-                        spacing: { before: 100, after: 200 }
+                        ]
                     })
                 );
-            });
+            }
 
             const doc = new Document({
-                sections: [{ properties: {}, children }]
+                sections: [{
+                    properties: {
+                        page: {
+                            margin: { top: 720, right: 720, bottom: 720, left: 720 } // 0.5 inch 邊界讓一頁一圖版面最大化
+                        }
+                    },
+                    children
+                }]
             });
 
             return await Packer.toBlob(doc);
         }
 
-        function triggerBlobDownload(blob, filename) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1500);
-        }
-
         downloadWordBtn.addEventListener('click', async () => {
-            const { filtered, splitMode, groups } = getFilteredAndGroupedItems();
-            if (filtered.length === 0) return;
+            if (photoItems.length === 0) return;
 
-            const basePrefix = (document.getElementById('wordFilename').value.trim() || '工程照片報告').replace(/\.docx$/i, '');
-            const tagSuffix = currentExportTagFilter === 'ALL' ? '全部Tag' : currentExportTagFilter;
-
+            const originalText = downloadWordBtn.innerHTML;
             downloadWordBtn.disabled = true;
-            const origBtnText = downloadWordBtn.innerHTML;
-            downloadWordBtn.innerHTML = '⏳ 正在產生 Word 檔案...';
+            downloadWordBtn.innerHTML = '<span>⏳ 正在產生 Word...</span>';
 
             try {
-                const entries = Array.from(groups.values());
-                if (splitMode === 'single' || entries.length === 1) {
-                    const singleGroup = entries[0];
-                    const towerPart = splitMode === 'split' ? `_${sanitizeSegment(singleGroup.towerLabel)}` : '';
-                    const docTitle = `${basePrefix} (${tagSuffix}${towerPart ? ' - ' + singleGroup.towerLabel : ''})`;
-                    const blob = await createWordBlobForItems(singleGroup.items, docTitle);
-                    triggerBlobDownload(blob, `${basePrefix}_${tagSuffix}${towerPart}.docx`);
-                } else {
-                    // 當有超過 1 個不同的 Tower 時，為每個 Tower 產生獨立的 Word 檔並逐一下載（同時打包一份總集 ZIP 防瀏覽器阻擋多檔下載）
-                    const zip = new JSZip();
-                    for (let i = 0; i < entries.length; i++) {
-                        const g = entries[i];
-                        const safeTower = sanitizeSegment(g.towerLabel) || `Tower_${i + 1}`;
-                        const docTitle = `${basePrefix} - ${tagSuffix} - ${g.towerLabel}`;
-                        const blob = await createWordBlobForItems(g.items, docTitle);
-                        const fileName = `${basePrefix}_${tagSuffix}_${safeTower}.docx`;
-                        zip.file(fileName, blob);
-                        triggerBlobDownload(blob, fileName);
+                const { splitMode, groups } = getGroupedItemsForExport();
+                // 匯出 Word 時不需要把 Tag 寫在檔案名字或標題上
+                const baseDocName = sanitizeSegment(defaultBaseNameInput.value) || '工程相片';
+
+                if (splitMode === 'split' && groups.size > 1) {
+                    // 若有多個不同 Tower，直接分別下載各自的 Word 檔
+                    for (const [towerKey, group] of groups.entries()) {
+                        const blob = await buildSingleWordBlob(group.items);
+                        saveAs(blob, `${towerKey}_${baseDocName}.docx`);
                     }
+                    showToast(`已依不同 Tower 分開匯出 ${groups.size} 個 Word 檔案！`);
+                } else {
+                    const firstGroup = Array.from(groups.values())[0];
+                    const blob = await buildSingleWordBlob(firstGroup.items);
+                    const filePrefix = splitMode === 'split' ? `${firstGroup.towerLabel}_` : '';
+                    saveAs(blob, `${filePrefix}${baseDocName}.docx`);
+                    showToast('Word 檔案匯出完成！');
                 }
+            } catch (err) {
+                console.error(err);
+                showToast('產生 Word 時發生錯誤：' + err.message, '❌');
             } finally {
                 downloadWordBtn.disabled = false;
-                downloadWordBtn.innerHTML = origBtnText;
+                downloadWordBtn.innerHTML = originalText;
             }
         });
 
+        // ==========================================
+        // 匯出已改名照片 ZIP（支援依 Tower 分開並依序排列）
+        // ==========================================
         downloadZipBtn.addEventListener('click', async () => {
-            const { filtered, splitMode, groups } = getFilteredAndGroupedItems();
-            if (filtered.length === 0) return;
+            if (photoItems.length === 0) return;
 
-            const tagSuffix = currentExportTagFilter === 'ALL' ? '全部Tag' : currentExportTagFilter;
-            const entries = Array.from(groups.values());
+            const originalText = downloadZipBtn.innerHTML;
+            downloadZipBtn.disabled = true;
+            downloadZipBtn.innerHTML = '<span>⏳ 正在打包 ZIP...</span>';
 
-            if (splitMode === 'split' && entries.length > 1) {
-                // 分開不同 Tower 輸出獨立的 ZIP 壓縮檔（同時自動依 Floor -> Flat -> 編號排序）
-                for (let i = 0; i < entries.length; i++) {
-                    const g = entries[i];
+            try {
+                const { splitMode, groups } = getGroupedItemsForExport();
+                const baseName = sanitizeSegment(defaultBaseNameInput.value) || '工程相片';
+                const tag = sanitizeSegment(selectedGlobalTag);
+
+                if (splitMode === 'split' && groups.size > 1) {
+                    // 分開不同 Tower 下載各自的 ZIP 檔
+                    for (const [towerKey, group] of groups.entries()) {
+                        const zip = new JSZip();
+                        const usedNames = new Set();
+
+                        for (const item of group.items) {
+                            const { blob } = await getOptimizedImageBufferAndDim(item, 2048);
+                            let baseFile = getRenamedPhotoFilename(item);
+                            let finalName = `${baseFile}.jpg`;
+                            let dup = 2;
+                            while (usedNames.has(finalName.toLowerCase())) {
+                                finalName = `${baseFile}_${dup++}.jpg`;
+                            }
+                            usedNames.add(finalName.toLowerCase());
+                            zip.file(finalName, blob);
+                        }
+
+                        const zipBlob = await zip.generateAsync({ type: 'blob' });
+                        saveAs(zipBlob, `${towerKey}_${baseName}_${tag}.zip`);
+                    }
+                    showToast(`已依不同 Tower 分開下載 ${groups.size} 個 ZIP 壓縮檔！`);
+                } else {
                     const zip = new JSZip();
                     const usedNames = new Set();
-                    const safeTower = sanitizeSegment(g.towerLabel) || `Tower_${i + 1}`;
+                    const firstGroup = Array.from(groups.values())[0];
 
-                    g.items.forEach(item => {
-                        let name = item.finalBaseName;
-                        let dup = 1;
-                        while (usedNames.has(`${name}${item.ext}`.toLowerCase())) {
-                            dup++;
-                            name = `${item.finalBaseName}_${dup}`;
+                    for (const item of firstGroup.items) {
+                        const { blob } = await getOptimizedImageBufferAndDim(item, 2048);
+                        let baseFile = getRenamedPhotoFilename(item);
+                        let finalName = `${baseFile}.jpg`;
+                        let dup = 2;
+                        while (usedNames.has(finalName.toLowerCase())) {
+                            finalName = `${baseFile}_${dup++}.jpg`;
                         }
-                        usedNames.add(`${name}${item.ext}`.toLowerCase());
-                        zip.file(`${name}${item.ext}`, base64ToUint8Array(item.dataUrl));
-                    });
-
-                    const blob = await zip.generateAsync({ type: 'blob' });
-                    triggerBlobDownload(blob, `已改名工程照片_${tagSuffix}_${safeTower}.zip`);
-                }
-            } else {
-                // 單一 ZIP 輸出（若勾選分開 Tower 且只有 1 個 Tower，則在檔名標示 Tower）
-                const zip = new JSZip();
-                const usedNames = new Set();
-
-                filtered.forEach(item => {
-                    let name = item.finalBaseName;
-                    let dup = 1;
-                    while (usedNames.has(`${name}${item.ext}`.toLowerCase())) {
-                        dup++;
-                        name = `${item.finalBaseName}_${dup}`;
+                        usedNames.add(finalName.toLowerCase());
+                        zip.file(finalName, blob);
                     }
-                    usedNames.add(`${name}${item.ext}`.toLowerCase());
-                    zip.file(`${name}${item.ext}`, base64ToUint8Array(item.dataUrl));
-                });
 
-                const singleTowerSuffix = (splitMode === 'split' && entries.length === 1)
-                    ? `_${sanitizeSegment(entries[0].towerLabel)}`
-                    : '';
-                const blob = await zip.generateAsync({ type: 'blob' });
-                triggerBlobDownload(blob, `已改名工程照片_${tagSuffix}${singleTowerSuffix}.zip`);
+                    const zipBlob = await zip.generateAsync({ type: 'blob' });
+                    const prefix = splitMode === 'split' ? `${firstGroup.towerLabel}_` : '';
+                    saveAs(zipBlob, `${prefix}${baseName}_${tag}.zip`);
+                    showToast('已改名照片 ZIP 下載完成！');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('打包 ZIP 發生錯誤：' + err.message, '❌');
+            } finally {
+                downloadZipBtn.disabled = false;
+                downloadZipBtn.innerHTML = originalText;
             }
         });
     </script>
