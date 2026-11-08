@@ -55,9 +55,6 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <button id="loadDemoBtn" class="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3.5 py-2 rounded-lg transition shadow-sm">
-                    ✨ 載入 4 張測試工程照片
-                </button>
                 <button id="clearAllBtn" class="text-xs bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white px-3.5 py-2 rounded-lg transition border border-slate-700">
                     🗑️ 清空全部
                 </button>
@@ -237,7 +234,7 @@
                 <div class="text-4xl">📷</div>
                 <h3 class="text-base font-bold text-slate-700">尚未載入任何工程照片</h3>
                 <p class="text-xs text-slate-500 max-w-md mx-auto">
-                    請點擊左上角「選擇整個照片資料夾」上傳照片，或點擊右上角「✨ 載入 4 張測試工程照片」立即體驗白板局部放大與分 Tower 匯出功能。
+                    請點擊左上角「選擇整個照片資料夾」或「選擇多張照片檔案」上傳您的工程照片，即可開始進行白板局部放大填寫與分 Tower 匯出！
                 </p>
             </div>
 
@@ -257,7 +254,6 @@
         // DOM 元素參照
         const folderInput = document.getElementById('folderInput');
         const filesInput = document.getElementById('filesInput');
-        const loadDemoBtn = document.getElementById('loadDemoBtn');
         const clearAllBtn = document.getElementById('clearAllBtn');
         const loadedCountBadge = document.getElementById('loadedCountBadge');
 
@@ -1070,98 +1066,6 @@
         filesInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) handleSelectedFiles(e.target.files);
             e.target.value = '';
-        });
-
-        // 產生 4 張模擬工程白板照片供立即測試
-        loadDemoBtn.addEventListener('click', async () => {
-            const demoSpecs = [
-                { filename: 'Tower1_12F_B.jpg', tower: '1', floor: '12', flat: 'B', boardX: 0.62, boardY: 0.58, bg: '#334155' },
-                { filename: 'Tower1_8F_A_01.jpg', tower: '1', floor: '8', flat: 'A', boardX: 0.35, boardY: 0.62, bg: '#1e293b' },
-                { filename: 'Tower1_8F_A_02.jpg', tower: '1', floor: '8', flat: 'A', boardX: 0.68, boardY: 0.45, bg: '#3b4252' },
-                { filename: 'Tower2_15F_C.jpg', tower: '2', floor: '15', flat: 'C', boardX: 0.48, boardY: 0.55, bg: '#27272a' }
-            ];
-
-            for (const spec of demoSpecs) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1280;
-                canvas.height = 960;
-                const ctx = canvas.getContext('2d');
-
-                // 模擬工地背景與管線
-                ctx.fillStyle = spec.bg;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.strokeStyle = '#64748b';
-                ctx.lineWidth = 18;
-                ctx.beginPath();
-                ctx.moveTo(180, 0); ctx.lineTo(180, 960);
-                ctx.moveTo(320, 0); ctx.lineTo(320, 960);
-                ctx.stroke();
-
-                // 繪製高亮度工程白板
-                const bw = 420, bh = 270;
-                const bx = Math.round(spec.boardX * canvas.width - bw / 2);
-                const by = Math.round(spec.boardY * canvas.height - bh / 2);
-
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(bx, by, bw, bh);
-                ctx.strokeStyle = '#0f172a';
-                ctx.lineWidth = 5;
-                ctx.strokeRect(bx, by, bw, bh);
-
-                // 表格線
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(bx, by + 65); ctx.lineTo(bx + bw, by + 65);
-                ctx.moveTo(bx, by + 135); ctx.lineTo(bx + bw, by + 135);
-                ctx.moveTo(bx, by + 205); ctx.lineTo(bx + bw, by + 205);
-                ctx.moveTo(bx + 130, by + 65); ctx.lineTo(bx + 130, by + bh);
-                ctx.stroke();
-
-                // 白板文字
-                ctx.fillStyle = '#0f172a';
-                ctx.font = 'bold 26px sans-serif';
-                ctx.fillText('喉管工程查驗紀錄白板', bx + 75, by + 44);
-
-                ctx.font = 'bold 24px sans-serif';
-                ctx.fillText('座數 Tower', bx + 12, by + 110);
-                ctx.fillText('樓層 Floor', bx + 12, by + 180);
-                ctx.fillText('單位 Flat', bx + 12, by + 248);
-
-                ctx.fillStyle = '#1d4ed8';
-                ctx.font = 'bold 30px sans-serif';
-                ctx.fillText(`Tower ${spec.tower}`, bx + 155, by + 112);
-                ctx.fillText(`${spec.floor}/F`, bx + 155, by + 182);
-                ctx.fillText(`Flat ${spec.flat}`, bx + 155, by + 250);
-
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                const img = await new Promise((resolve) => {
-                    const image = new Image();
-                    image.onload = () => resolve(image);
-                    image.src = dataUrl;
-                });
-
-                const parsed = parseFilenameForFields(spec.filename);
-                const wb = detectWhiteboardRegion(img);
-
-                photoItems.push({
-                    uid: nextPhotoUid++,
-                    originalName: spec.filename,
-                    ext: '.jpg',
-                    imgElement: img,
-                    rotation: 0,
-                    centerX: wb.centerX,
-                    centerY: wb.centerY,
-                    zoom: wb.zoom,
-                    tower: parsed.tower,
-                    floor: parsed.floor,
-                    flat: parsed.flat,
-                    flatSeq: '1',
-                    manualSeqOverride: false
-                });
-            }
-
-            renderFullPhotoList();
-            showToast('已載入 4 張測試工程照片（包含同單位自動編號與不同 Tower 測試）！');
         });
 
         clearAllBtn.addEventListener('click', () => {
